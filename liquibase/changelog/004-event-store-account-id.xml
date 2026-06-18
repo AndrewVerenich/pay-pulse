@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+  <changeSet id="301-event-store-purge-for-account-id" author="paypulse">
+    <comment>
+      Add account_id partitioning column. Existing rows have no account_id source,
+      so wipe them (consistent with the wipe in 003 when source_event_id semantics changed).
+    </comment>
+    <sql>DELETE FROM payment_command.event_store</sql>
+  </changeSet>
+
+  <changeSet id="302-event-store-add-account-id" author="paypulse">
+    <sql>
+      ALTER TABLE payment_command.event_store
+        ADD COLUMN account_id VARCHAR(255) NOT NULL
+    </sql>
+    <sql>CREATE INDEX idx_event_store_account ON payment_command.event_store (account_id)</sql>
+  </changeSet>
+</databaseChangeLog>

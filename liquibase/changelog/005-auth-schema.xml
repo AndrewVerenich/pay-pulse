@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+  <changeSet id="401-schema-auth" author="paypulse">
+    <sql>CREATE SCHEMA IF NOT EXISTS auth</sql>
+  </changeSet>
+
+  <changeSet id="402-users" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE auth.users (
+        id BIGSERIAL PRIMARY KEY,
+        username VARCHAR(64) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        roles VARCHAR(255) NOT NULL DEFAULT 'OPS',
+        created_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now()))
+      )
+      ]]>
+    </sql>
+  </changeSet>
+
+  <changeSet id="403-refresh-tokens" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE auth.refresh_tokens (
+        id BIGSERIAL PRIMARY KEY,
+        token VARCHAR(64) NOT NULL UNIQUE,
+        user_id BIGINT NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
+        fingerprint VARCHAR(255) NOT NULL DEFAULT '',
+        family VARCHAR(36) NOT NULL,
+        status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+        expires_at TIMESTAMPTZ(3) NOT NULL,
+        created_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now()))
+      )
+      ]]>
+    </sql>
+    <sql>CREATE INDEX idx_refresh_tokens_user ON auth.refresh_tokens (user_id, status)</sql>
+    <sql>CREATE INDEX idx_refresh_tokens_family ON auth.refresh_tokens (user_id, family)</sql>
+    <sql>CREATE INDEX idx_refresh_tokens_expires ON auth.refresh_tokens (expires_at)</sql>
+  </changeSet>
+
+  <changeSet id="404-seed-admin" author="paypulse">
+    <comment>
+      Seed default admin user via pgcrypto bcrypt ($2a$ format compatible with Spring BCryptPasswordEncoder).
+      Password: 'admin'. For demo only.
+    </comment>
+    <sql>
+      INSERT INTO auth.users (username, password, email, roles)
+      VALUES ('admin', crypt('admin', gen_salt('bf', 10)), 'admin@paypulse.local', 'OPS,ADMIN')
+      ON CONFLICT (username) DO NOTHING
+    </sql>
+  </changeSet>
+</databaseChangeLog>

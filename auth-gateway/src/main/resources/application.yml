@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: auth-gateway
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: ${PAYPULSE_REDIS_HOST:localhost}
+      port: ${PAYPULSE_REDIS_PORT:6379}
+  r2dbc:
+    url: r2dbc:postgresql://${PAYPULSE_DB_HOST:localhost}:${PAYPULSE_DB_PORT:5432}/${PAYPULSE_DB_NAME:paypulse}
+    username: ${PAYPULSE_DB_USER:postgres}
+    password: ${PAYPULSE_DB_PASSWORD:postgres}
+    pool:
+      initial-size: 2
+      max-size: 10
+
+server:
+  port: ${SERVER_PORT:8090}
+
+paypulse:
+  auth:
+    token-blacklist-enabled: ${PAYPULSE_TOKEN_BLACKLIST_ENABLED:false}
+  jwt:
+    secret: ${PAYPULSE_JWT_SECRET:0123456789abcdef0123456789abcdef0123456789abcdef}
+    access-expiration: ${PAYPULSE_JWT_ACCESS_EXPIRATION:15m}
+    refresh-expiration: ${PAYPULSE_JWT_REFRESH_EXPIRATION:30d}
+    issuer: ${PAYPULSE_JWT_ISSUER:paypulse-auth-gateway}
+  gateway:
+    payment-command-uri: ${PAYPULSE_PAYMENT_COMMAND_URI:http://localhost:8080}
+    account-query-uri: ${PAYPULSE_ACCOUNT_QUERY_URI:http://localhost:8082}
+    saga-orchestrator-uri: ${PAYPULSE_SAGA_ORCHESTRATOR_URI:http://localhost:8083}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.paypulse.gateway: INFO

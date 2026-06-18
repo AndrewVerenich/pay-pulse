@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: payment-generator
+
+paypulse:
+  generator:
+    enabled: ${PAYPULSE_GENERATOR_ENABLED:true}
+    base-url: ${PAYPULSE_GATEWAY_URL:http://localhost:8090}
+    access-token: ${PAYPULSE_ACCESS_TOKEN:}
+    interval-ms: ${PAYPULSE_GENERATOR_INTERVAL_MS:4000}
+
+logging:
+  level:
+    com.paypulse.generator: INFO

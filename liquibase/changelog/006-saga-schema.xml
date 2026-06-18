@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+  <changeSet id="401-schema-saga" author="paypulse">
+    <sql>CREATE SCHEMA IF NOT EXISTS saga</sql>
+  </changeSet>
+
+  <changeSet id="402-saga-instance" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE saga.saga_instance (
+        id           BIGSERIAL PRIMARY KEY,
+        saga_id      UUID         NOT NULL UNIQUE,
+        saga_type    VARCHAR(100) NOT NULL,
+        status       VARCHAR(30)  NOT NULL DEFAULT 'STARTED',
+        current_step VARCHAR(100),
+        payload      JSONB        NOT NULL,
+        created_at   TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        updated_at   TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        completed_at TIMESTAMPTZ(3)
+      )
+      ]]>
+    </sql>
+    <sql>CREATE INDEX idx_saga_instance_status ON saga.saga_instance (status)</sql>
+    <sql>CREATE INDEX idx_saga_instance_type ON saga.saga_instance (saga_type)</sql>
+    <sql>CREATE INDEX idx_saga_instance_created ON saga.saga_instance (created_at DESC)</sql>
+  </changeSet>
+
+  <changeSet id="403-saga-step" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE saga.saga_step (
+        id               BIGSERIAL PRIMARY KEY,
+        saga_instance_id BIGINT       NOT NULL REFERENCES saga.saga_instance (id),
+        step_name        VARCHAR(100) NOT NULL,
+        step_type        VARCHAR(30)  NOT NULL,
+        step_order       INT          NOT NULL,
+        status           VARCHAR(30)  NOT NULL DEFAULT 'PENDING',
+        command_payload  JSONB,
+        reply_payload    JSONB,
+        error_message    TEXT,
+        retry_count      INT          NOT NULL DEFAULT 0,
+        started_at       TIMESTAMPTZ(3),
+        completed_at     TIMESTAMPTZ(3),
+        CONSTRAINT uk_saga_step_instance_name UNIQUE (saga_instance_id, step_name)
+      )
+      ]]>
+    </sql>
+    <sql>CREATE INDEX idx_saga_step_instance ON saga.saga_step (saga_instance_id)</sql>
+    <sql>CREATE INDEX idx_saga_step_status ON saga.saga_step (status)</sql>
+  </changeSet>
+
+  <changeSet id="406-payment-cmd-outbox-replica" author="paypulse">
+    <sql>ALTER TABLE payment_command.outbox REPLICA IDENTITY FULL</sql>
+  </changeSet>
+
+  <changeSet id="407-participant-schemas" author="paypulse">
+    <sql>CREATE SCHEMA IF NOT EXISTS participant_fraud</sql>
+    <sql>CREATE SCHEMA IF NOT EXISTS participant_risk</sql>
+    <sql>CREATE SCHEMA IF NOT EXISTS participant_ledger</sql>
+    <sql>CREATE SCHEMA IF NOT EXISTS participant_notification</sql>
+  </changeSet>
+
+  <changeSet id="408-processed-commands-fraud" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE participant_fraud.processed_commands (
+        saga_id UUID NOT NULL,
+        step_name VARCHAR(64) NOT NULL,
+        processed_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        reply_payload TEXT NOT NULL,
+        PRIMARY KEY (saga_id, step_name)
+      )
+      ]]>
+    </sql>
+  </changeSet>
+
+  <changeSet id="409-processed-commands-risk" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE participant_risk.processed_commands (
+        saga_id UUID NOT NULL,
+        step_name VARCHAR(64) NOT NULL,
+        processed_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        reply_payload TEXT NOT NULL,
+        PRIMARY KEY (saga_id, step_name)
+      )
+      ]]>
+    </sql>
+  </changeSet>
+
+  <changeSet id="410-processed-commands-ledger" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE participant_ledger.processed_commands (
+        saga_id UUID NOT NULL,
+        step_name VARCHAR(64) NOT NULL,
+        processed_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        reply_payload TEXT NOT NULL,
+        PRIMARY KEY (saga_id, step_name)
+      )
+      ]]>
+    </sql>
+  </changeSet>
+
+  <changeSet id="411-processed-commands-notification" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE participant_notification.processed_commands (
+        saga_id UUID NOT NULL,
+        step_name VARCHAR(64) NOT NULL,
+        processed_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        reply_payload TEXT NOT NULL,
+        PRIMARY KEY (saga_id, step_name)
+      )
+      ]]>
+    </sql>
+  </changeSet>
+
+</databaseChangeLog>

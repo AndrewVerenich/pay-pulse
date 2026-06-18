@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+  <changeSet id="101-schema-account-query" author="paypulse">
+    <sql>CREATE SCHEMA IF NOT EXISTS account_query</sql>
+  </changeSet>
+
+  <changeSet id="102-balance-events" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE account_query.balance_events (
+        id BIGSERIAL PRIMARY KEY,
+        source_event_id BIGINT NOT NULL UNIQUE,
+        account_id VARCHAR(255) NOT NULL,
+        currency VARCHAR(16) NOT NULL,
+        delta NUMERIC(19, 4) NOT NULL,
+        balance_after NUMERIC(19, 4) NOT NULL,
+        occurred_at TIMESTAMPTZ(3) NOT NULL,
+        aggregate_id UUID NOT NULL
+      )
+      ]]>
+    </sql>
+    <sql>CREATE INDEX idx_balance_events_account_time ON account_query.balance_events (account_id, occurred_at)</sql>
+  </changeSet>
+
+  <changeSet id="103-account-balance" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE account_query.account_balance (
+        account_id VARCHAR(255) NOT NULL,
+        currency VARCHAR(16) NOT NULL,
+        balance NUMERIC(19, 4) NOT NULL,
+        last_occurred_at TIMESTAMPTZ(3) NOT NULL,
+        last_source_event_id BIGINT NOT NULL,
+        PRIMARY KEY (account_id, currency)
+      )
+      ]]>
+    </sql>
+  </changeSet>
+</databaseChangeLog>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+  <changeSet id="001-pgcrypto" author="paypulse">
+    <sql>CREATE EXTENSION IF NOT EXISTS pgcrypto</sql>
+  </changeSet>
+
+  <changeSet id="002-schema-payment-command" author="paypulse">
+    <sql>CREATE SCHEMA IF NOT EXISTS payment_command</sql>
+  </changeSet>
+
+  <changeSet id="003-event-store" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE payment_command.event_store (
+        id BIGSERIAL PRIMARY KEY,
+        aggregate_id UUID NOT NULL,
+        aggregate_type VARCHAR(64) NOT NULL,
+        event_type VARCHAR(128) NOT NULL,
+        version INT NOT NULL,
+        payload JSONB NOT NULL,
+        occurred_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        CONSTRAINT uk_event_store_aggregate_version UNIQUE (aggregate_id, version)
+      )
+      ]]>
+    </sql>
+    <sql>CREATE INDEX idx_event_store_aggregate ON payment_command.event_store (aggregate_id)</sql>
+    <sql>ALTER TABLE payment_command.event_store REPLICA IDENTITY FULL</sql>
+  </changeSet>
+
+  <changeSet id="004-outbox" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE payment_command.outbox (
+        id BIGSERIAL PRIMARY KEY,
+        partitioning_key VARCHAR(255) NOT NULL,
+        type VARCHAR(100) NOT NULL,
+        payload JSONB NOT NULL,
+        idempotency_key UUID NOT NULL DEFAULT gen_random_uuid(),
+        status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+        created_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        processed_at TIMESTAMPTZ(3) NULL
+      )
+      ]]>
+    </sql>
+    <sql>CREATE UNIQUE INDEX idx_outbox_idempotency_key ON payment_command.outbox (idempotency_key)</sql>
+    <sql>CREATE INDEX idx_outbox_status_created ON payment_command.outbox (status, created_at)</sql>
+  </changeSet>
+
+  <changeSet id="005-idempotency" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE payment_command.idempotency_keys (
+        key_hash VARCHAR(64) PRIMARY KEY,
+        request_hash VARCHAR(64) NOT NULL,
+        response_body JSONB NOT NULL,
+        created_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now())),
+        expires_at TIMESTAMPTZ(3) NOT NULL
+      )
+      ]]>
+    </sql>
+    <sql>CREATE INDEX idx_idempotency_expires ON payment_command.idempotency_keys (expires_at)</sql>
+  </changeSet>
+
+  <changeSet id="006-event-store-payload-text" author="paypulse">
+    <sql>
+      ALTER TABLE payment_command.event_store
+      ALTER COLUMN payload TYPE TEXT USING payload::text
+    </sql>
+  </changeSet>
+
+  <changeSet id="007-idempotency-response-body-text" author="paypulse">
+    <sql>
+      ALTER TABLE payment_command.idempotency_keys
+      ALTER COLUMN response_body TYPE TEXT USING response_body::text
+    </sql>
+  </changeSet>
+</databaseChangeLog>

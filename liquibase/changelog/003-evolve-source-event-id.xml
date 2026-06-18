@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+  <changeSet id="201-balance-events-purge-old-numeric-ids" author="paypulse">
+    <comment>
+      source_event_id semantics change from event_store CDC numeric id to application-level UUID.
+      Old rows are no longer addressable; wipe before type change.
+    </comment>
+    <sql>DELETE FROM account_query.account_balance</sql>
+    <sql>DELETE FROM account_query.balance_events</sql>
+  </changeSet>
+
+  <changeSet id="202-balance-events-source-id-varchar" author="paypulse">
+    <sql>
+      ALTER TABLE account_query.balance_events
+        ALTER COLUMN source_event_id TYPE VARCHAR(64) USING source_event_id::varchar
+    </sql>
+    <sql>
+      ALTER TABLE account_query.account_balance
+        ALTER COLUMN last_source_event_id TYPE VARCHAR(64) USING last_source_event_id::varchar
+    </sql>
+  </changeSet>
+
+  <changeSet id="203-event-store-replica-identity-default" author="paypulse">
+    <comment>
+      event_store is insert-only and streamed by Debezium via the EventRouter
+      (payment.events). INSERT-only CDC needs only the primary key in WAL, so
+      REPLICA IDENTITY DEFAULT is sufficient and keeps WAL volume low (FULL is
+      only required for UPDATE/DELETE CDC).
+    </comment>
+    <sql>ALTER TABLE payment_command.event_store REPLICA IDENTITY DEFAULT</sql>
+  </changeSet>
+</databaseChangeLog>

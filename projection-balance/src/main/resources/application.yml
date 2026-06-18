@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: projection-balance
+  datasource:
+    url: jdbc:postgresql://${PAYPULSE_DB_HOST:localhost}:${PAYPULSE_DB_PORT:5432}/${PAYPULSE_DB_NAME:paypulse}
+    username: ${PAYPULSE_DB_USER:postgres}
+    password: ${PAYPULSE_DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+  kafka:
+    bootstrap-servers: ${PAYPULSE_KAFKA_BOOTSTRAP:kafka:9092}
+    consumer:
+      group-id: projection-balance
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: false
+      properties:
+        isolation.level: read_committed
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+    listener:
+      ack-mode: manual_immediate
+
+paypulse:
+  kafka:
+    payment-events-topic: payment.events
+    consumer-group: projection-balance
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus
+
+logging:
+  level:
+    com.paypulse.projection: INFO

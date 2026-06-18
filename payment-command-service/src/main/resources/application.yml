@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: payment-command-service
+  r2dbc:
+    url: r2dbc:postgresql://${PAYPULSE_DB_HOST:localhost}:${PAYPULSE_DB_PORT:5432}/${PAYPULSE_DB_NAME:paypulse}
+    username: ${PAYPULSE_DB_USER:postgres}
+    password: ${PAYPULSE_DB_PASSWORD:postgres}
+    pool:
+      initial-size: 5
+      max-size: 20
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info
+  endpoint:
+    health:
+      show-details: when_authorized
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  level:
+    root: INFO
+    com.paypulse: DEBUG

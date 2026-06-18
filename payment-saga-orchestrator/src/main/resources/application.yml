@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: payment-saga-orchestrator
+  r2dbc:
+    url: r2dbc:postgresql://${PAYPULSE_DB_HOST:localhost}:${PAYPULSE_DB_PORT:55432}/${PAYPULSE_DB_NAME:paypulse}
+    username: ${PAYPULSE_DB_USER:postgres}
+    password: ${PAYPULSE_DB_PASSWORD:postgres}
+  kafka:
+    bootstrap-servers: ${PAYPULSE_KAFKA_BOOTSTRAP:localhost:19092}
+    consumer:
+      group-id: paypulse-saga-orchestrator
+      auto-offset-reset: earliest
+      enable-auto-commit: true
+
+server:
+  port: ${SERVER_PORT:8083}
+
+paypulse:
+  saga:
+    start-topic: saga.commands.start
+    reply-topic: saga.replies
+
+saga:
+  timeout:
+    check-seconds: 30
+    check-interval-ms: 10000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info

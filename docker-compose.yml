@@ -1,0 +1,443 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: paypulse-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: paypulse
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_replication_slots=16"]
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d paypulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  liquibase-migrate:
+    build:
+      context: .
+      dockerfile: docker/liquibase-runner/Dockerfile
+    container_name: paypulse-liquibase
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres:5432/paypulse
+      LIQUIBASE_COMMAND_USERNAME: postgres
+      LIQUIBASE_COMMAND_PASSWORD: postgres
+    restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    container_name: paypulse-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: paypulse-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc \"exec 3<>/dev/tcp/localhost/2181; echo srvr >&3; cat <&3 | grep -q Mode\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: paypulse-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "19092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: paypulse-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.events --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.events.DLT --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.commands.start --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.commands.fraud-check --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.commands.risk-scoring --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.commands.ledger-apply --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.commands.notification --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.replies --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.events --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.compensation.failed --partitions 3 --replication-factor 1
+        echo "Kafka topics ready."
+
+  kafka-ui:
+    image: redpandadata/console:v3.3.1
+    container_name: paypulse-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "18088:8080"
+    environment:
+      KAFKA_BROKERS: kafka:9092
+
+  connect:
+    image: debezium/connect:2.5
+    container_name: paypulse-connect
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      liquibase-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "18083:8083"
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: paypulse-connect-cluster
+      CONFIG_STORAGE_TOPIC: paypulse_connect_configs
+      OFFSET_STORAGE_TOPIC: paypulse_connect_offsets
+      STATUS_STORAGE_TOPIC: paypulse_connect_statuses
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      KEY_CONVERTER_SCHEMAS_ENABLE: "false"
+      VALUE_CONVERTER_SCHEMAS_ENABLE: "false"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
+
+  debezium-register:
+    image: curlimages/curl:8.10.1
+    container_name: paypulse-debezium-register
+    depends_on:
+      connect:
+        condition: service_healthy
+    volumes:
+      - ./debezium/connectors/payment-event-store.json:/connector-event-store.json:ro
+      - ./debezium/connectors/payment-outbox.json:/connector-outbox.json:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -e
+        (curl -sfS -X POST -H 'Content-Type: application/json' \
+          --data @/connector-event-store.json \
+          http://connect:8083/connectors \
+        ) || (echo "Event-store connector may already exist; continuing.")
+        (curl -sfS -X POST -H 'Content-Type: application/json' \
+          --data @/connector-outbox.json \
+          http://connect:8083/connectors \
+        ) || (echo "Outbox connector may already exist; continuing.")
+        echo "Debezium connectors registered."
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: paypulse-clickhouse
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    ports:
+      - "8124:8123"
+      - "9001:9000"
+    volumes:
+      - ./clickhouse/init:/docker-entrypoint-initdb.d:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  payment-command-service:
+    build:
+      context: .
+      dockerfile: payment-command-service/Dockerfile
+    container_name: paypulse-payment-command
+    depends_on:
+      postgres:
+        condition: service_healthy
+      liquibase-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8086:8080"
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  account-query-service:
+    build:
+      context: .
+      dockerfile: account-query-service/Dockerfile
+    container_name: paypulse-account-query
+    depends_on:
+      postgres:
+        condition: service_healthy
+      liquibase-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8087:8082"
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      SERVER_PORT: "8082"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8082/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  projection-balance:
+    build:
+      context: .
+      dockerfile: projection-balance/Dockerfile
+    container_name: paypulse-projection-balance
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      liquibase-migrate:
+        condition: service_completed_successfully
+    environment:
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+
+  auth-gateway:
+    build:
+      context: .
+      dockerfile: auth-gateway/Dockerfile
+    container_name: paypulse-auth-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      liquibase-migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      payment-command-service:
+        condition: service_healthy
+      account-query-service:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    environment:
+      SERVER_PORT: "8090"
+      PAYPULSE_PAYMENT_COMMAND_URI: http://payment-command-service:8080
+      PAYPULSE_ACCOUNT_QUERY_URI: http://account-query-service:8082
+      PAYPULSE_SAGA_ORCHESTRATOR_URI: http://payment-saga-orchestrator:8083
+      PAYPULSE_JWT_SECRET: "0123456789abcdef0123456789abcdef0123456789abcdef"
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      PAYPULSE_REDIS_HOST: redis
+      PAYPULSE_REDIS_PORT: "6379"
+      PAYPULSE_TOKEN_BLACKLIST_ENABLED: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8090/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 90s
+
+  payment-generator:
+    build:
+      context: .
+      dockerfile: payment-generator/Dockerfile
+    container_name: paypulse-payment-generator
+    depends_on:
+      auth-gateway:
+        condition: service_healthy
+    environment:
+      PAYPULSE_GATEWAY_URL: http://auth-gateway:8090
+      PAYPULSE_GENERATOR_ENABLED: "true"
+      PAYPULSE_GENERATOR_INTERVAL_MS: "5000"
+
+  payment-saga-orchestrator:
+    build:
+      context: .
+      dockerfile: payment-saga-orchestrator/Dockerfile
+    container_name: paypulse-saga-orchestrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+      liquibase-migrate:
+        condition: service_completed_successfully
+      kafka-init:
+        condition: service_completed_successfully
+      debezium-register:
+        condition: service_completed_successfully
+    ports:
+      - "8083:8083"
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+      SERVER_PORT: "8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  participant-fraud-check:
+    build:
+      context: .
+      dockerfile: participant-fraud-check/Dockerfile
+    container_name: paypulse-participant-fraud
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      liquibase-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8091/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  participant-risk-scoring:
+    build:
+      context: .
+      dockerfile: participant-risk-scoring/Dockerfile
+    container_name: paypulse-participant-risk
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      liquibase-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8092/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  participant-ledger-apply:
+    build:
+      context: .
+      dockerfile: participant-ledger-apply/Dockerfile
+    container_name: paypulse-participant-ledger
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      liquibase-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8093/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  participant-notification:
+    build:
+      context: .
+      dockerfile: participant-notification/Dockerfile
+    container_name: paypulse-participant-notification
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      liquibase-migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8094/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+networks:
+  default:
+    name: paypulse_net
