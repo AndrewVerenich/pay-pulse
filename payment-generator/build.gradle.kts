@@ -15,6 +15,7 @@ dependencies {
   implementation(project(":shared:common-model"))
 
   implementation("org.springframework.boot:spring-boot-starter-webflux")
+  implementation("org.springframework.boot:spring-boot-starter-actuator")
   implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
 }
 

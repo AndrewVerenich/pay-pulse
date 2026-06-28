@@ -2,12 +2,24 @@ spring:
   application:
     name: payment-generator
 
+server:
+  port: ${SERVER_PORT:8097}
+
 paypulse:
   generator:
     enabled: ${PAYPULSE_GENERATOR_ENABLED:true}
+    scenarios-enabled: ${PAYPULSE_GENERATOR_SCENARIOS_ENABLED:true}
     base-url: ${PAYPULSE_GATEWAY_URL:http://localhost:8090}
     access-token: ${PAYPULSE_ACCESS_TOKEN:}
+    login-username: ${PAYPULSE_GENERATOR_LOGIN_USER:admin}
+    login-password: ${PAYPULSE_GENERATOR_LOGIN_PASSWORD:admin}
     interval-ms: ${PAYPULSE_GENERATOR_INTERVAL_MS:4000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
 
 logging:
   level:
