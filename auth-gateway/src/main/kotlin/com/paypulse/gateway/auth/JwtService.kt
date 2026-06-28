@@ -8,8 +8,7 @@ import io.jsonwebtoken.security.Keys
 import org.springframework.stereotype.Service
 import java.nio.charset.StandardCharsets
 import java.time.Instant
-import java.util.Date
-import java.util.UUID
+import java.util.*
 import javax.crypto.SecretKey
 
 @Service
@@ -44,5 +43,5 @@ class JwtService(
       .payload
 
   fun newRefreshToken(): String = UUID.randomUUID().toString().replace("-", "") +
-    UUID.randomUUID().toString().replace("-", "")
+      UUID.randomUUID().toString().replace("-", "")
 }

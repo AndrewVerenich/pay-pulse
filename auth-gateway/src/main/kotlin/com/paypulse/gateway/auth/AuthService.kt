@@ -7,6 +7,7 @@ import com.paypulse.gateway.auth.repository.RefreshTokenRepository
 import com.paypulse.gateway.auth.repository.UserRepository
 import com.paypulse.gateway.config.JwtProperties
 import io.jsonwebtoken.Claims
+import io.micrometer.core.instrument.MeterRegistry
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.security.crypto.password.PasswordEncoder
@@ -16,7 +17,9 @@ import reactor.core.publisher.Mono
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.util.UUID
+import java.util.*
+
+private const val PAYPULSE_REFRESH_ROTATIONS_TOTAL_COUNTER = "paypulse_refresh_rotations_total"
 
 @Service
 class AuthService(
@@ -27,6 +30,7 @@ class AuthService(
   private val jwtProperties: JwtProperties,
   private val tx: TransactionalOperator,
   private val tokenBlacklist: ObjectProvider<TokenBlacklistService>,
+  private val meterRegistry: MeterRegistry,
 ) {
 
   private val log = LoggerFactory.getLogger(AuthService::class.java)
@@ -59,7 +63,11 @@ class AuthService(
         } else {
           val family = UUID.randomUUID().toString()
           issueTokens(user, family, fingerprint)
+            .doOnSuccess { meterRegistry.counter("paypulse_auth_logins_total", "result", "success").increment() }
         }
+      }
+      .doOnError(InvalidCredentialsException::class.java) {
+        meterRegistry.counter("paypulse_auth_logins_total", "result", "failed").increment()
       }
 
   fun refresh(refreshTokenValue: String, fingerprint: String): Mono<TokenPair> =
@@ -103,10 +111,16 @@ class AuthService(
                 refreshTokenRepository
                   .updateStatus(rt.id!!, RefreshTokenStatus.USED.name)
                   .then(issueTokens(user, rt.family, fingerprint))
+                  .doOnSuccess {
+                    meterRegistry.counter(PAYPULSE_REFRESH_ROTATIONS_TOTAL_COUNTER, "result", "success").increment()
+                  }
               }
               .`as`(tx::transactional)
           }
         }
+      }
+      .doOnError(InvalidRefreshTokenException::class.java) {
+        meterRegistry.counter(PAYPULSE_REFRESH_ROTATIONS_TOTAL_COUNTER, "result", "failed").increment()
       }
 
   fun logout(refreshTokenValue: String): Mono<Void> =

@@ -4,7 +4,7 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
 import java.time.OffsetDateTime
-import java.util.UUID
+import java.util.*
 
 @Table(value = "refresh_tokens", schema = "auth")
 data class RefreshToken(

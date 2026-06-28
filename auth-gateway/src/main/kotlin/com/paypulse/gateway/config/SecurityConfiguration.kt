@@ -23,6 +23,8 @@ class SecurityConfiguration {
       .csrf { it.disable() }
       .authorizeExchange {
         it.pathMatchers("/auth/**", "/actuator/**").permitAll()
+          // SSE-стримы аутентифицируются в bff-ops через ?token= (EventSource не шлёт заголовки).
+          .pathMatchers("/api/live/**").permitAll()
           .anyExchange().authenticated()
       }
       .oauth2ResourceServer { oauth2 ->

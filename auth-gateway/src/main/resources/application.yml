@@ -30,6 +30,9 @@ paypulse:
     payment-command-uri: ${PAYPULSE_PAYMENT_COMMAND_URI:http://localhost:8080}
     account-query-uri: ${PAYPULSE_ACCOUNT_QUERY_URI:http://localhost:8082}
     saga-orchestrator-uri: ${PAYPULSE_SAGA_ORCHESTRATOR_URI:http://localhost:8083}
+    bff-ops-uri: ${PAYPULSE_BFF_OPS_URI:http://localhost:8084}
+    rule-management-uri: ${PAYPULSE_RULE_MANAGEMENT_URI:http://localhost:8085}
+    payment-generator-uri: ${PAYPULSE_PAYMENT_GENERATOR_URI:http://localhost:8097}
 
 management:
   endpoints:
