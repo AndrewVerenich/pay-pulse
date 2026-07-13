@@ -2,7 +2,7 @@ package com.paypulse.paymentcommand.application.domain
 
 import java.math.BigDecimal
 import java.time.OffsetDateTime
-import java.util.UUID
+import java.util.*
 
 data class PaymentInitiatedPayload(
   val eventId: UUID,

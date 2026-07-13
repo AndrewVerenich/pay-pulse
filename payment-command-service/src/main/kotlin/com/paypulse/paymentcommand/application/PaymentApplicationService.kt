@@ -1,14 +1,14 @@
 package com.paypulse.paymentcommand.application
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import com.paypulse.common.model.CreatePaymentRequest
 import com.paypulse.common.model.CreatePaymentResponse
+import com.paypulse.outbox.publisher.OutboxPublisher
 import com.paypulse.paymentcommand.adapter.persistence.EventStoreRepository
 import com.paypulse.paymentcommand.adapter.persistence.EventStoreRow
 import com.paypulse.paymentcommand.adapter.persistence.IdempotencyRepository
 import com.paypulse.paymentcommand.application.domain.PaymentInitiatedPayload
-import com.paypulse.outbox.publisher.OutboxPublisher
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import io.micrometer.core.instrument.MeterRegistry
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.stereotype.Service
@@ -19,26 +19,35 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
-import java.util.HexFormat
-import java.util.UUID
+import java.util.*
+
+interface PaymentApplicationService {
+  fun createPayment(
+    request: CreatePaymentRequest,
+    idempotencyKey: String?,
+    canonicalRequestJson: String,
+  ): Mono<CreatePaymentResponse>
+}
 
 @Service
-class PaymentApplicationService(
+class DefaultPaymentApplicationService(
   private val eventStoreRepository: EventStoreRepository,
   private val idempotencyRepository: IdempotencyRepository,
   private val transactionalOperator: TransactionalOperator,
   private val objectMapper: ObjectMapper,
   private val meterRegistry: MeterRegistry,
   private val outboxPublisher: OutboxPublisher,
-) {
+) : PaymentApplicationService {
 
-  fun createPayment(
+  override fun createPayment(
     request: CreatePaymentRequest,
     idempotencyKey: String?,
     canonicalRequestJson: String,
   ): Mono<CreatePaymentResponse> {
     if (idempotencyKey.isNullOrBlank()) {
-      return transactionalOperator.transactional(insertPayment(request, null, null))
+      return transactionalOperator.transactional(
+        insertPayment(request = request, idempotencyKeyHash = null, requestHash = null)
+      )
     }
     val keyHash = sha256Hex(idempotencyKey)
     val requestHash = sha256Hex(canonicalRequestJson)
@@ -48,10 +57,17 @@ class PaymentApplicationService(
           Mono.error(IdempotencyConflictException())
         } else {
           Mono.fromCallable { objectMapper.readValue<CreatePaymentResponse>(row.responseBody) }
-            .doOnSuccess { meterRegistry.counter("paypulse_payments_total", "result", "idempotent_hit").increment() }
+            .doOnSuccess {
+              meterRegistry.counter("paypulse_payments_total", "result", "idempotent_hit").increment()
+              meterRegistry.counter("paypulse_idempotency_hits_total").increment()
+            }
         }
       }
-      .switchIfEmpty(transactionalOperator.transactional(insertPayment(request, keyHash, requestHash)))
+      .switchIfEmpty(
+        transactionalOperator.transactional(
+          insertPayment(request = request, idempotencyKeyHash = keyHash, requestHash = requestHash)
+        )
+      )
   }
 
   private fun insertPayment(
