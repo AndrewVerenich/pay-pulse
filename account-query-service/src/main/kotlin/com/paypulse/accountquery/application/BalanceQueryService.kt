@@ -1,22 +1,31 @@
 package com.paypulse.accountquery.application
 
 import com.paypulse.accountquery.adapter.`in`.BalanceResponse
-import com.paypulse.accountquery.adapter.persistence.BalanceReadRepository
+import com.paypulse.accountquery.adapter.persistence.AccountBalanceRepository
+import com.paypulse.accountquery.adapter.persistence.BalanceEventRepository
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Mono
+import java.math.BigDecimal
 import java.time.OffsetDateTime
 
-@Service
-class BalanceQueryService(
-  private val balanceReadRepository: BalanceReadRepository,
-) {
+interface BalanceQueryService {
+  fun getBalance(accountId: String, currency: String, at: OffsetDateTime?): Mono<BalanceResponse>
+}
 
-  fun getBalance(accountId: String, currency: String, at: OffsetDateTime?): Mono<BalanceResponse> =
+@Service
+class DefaultBalanceQueryService(
+  private val accountBalanceRepository: AccountBalanceRepository,
+  private val balanceEventRepository: BalanceEventRepository,
+) : BalanceQueryService {
+
+  override fun getBalance(accountId: String, currency: String, at: OffsetDateTime?): Mono<BalanceResponse> =
     if (at == null) {
-      balanceReadRepository.currentBalance(accountId, currency)
-        .map { (bal, ts) -> BalanceResponse(accountId, currency, bal, ts) }
+      accountBalanceRepository.findByAccountIdAndCurrency(accountId, currency)
+        .map { row -> BalanceResponse(accountId, currency, row.balance, row.lastOccurredAt) }
+        .defaultIfEmpty(BalanceResponse(accountId, currency, BigDecimal.ZERO, null))
     } else {
-      balanceReadRepository.balanceAt(accountId, currency, at)
-        .map { (bal, ts) -> BalanceResponse(accountId, currency, bal, ts) }
+      balanceEventRepository.findLatestAt(accountId, currency, at)
+        .map { row -> BalanceResponse(accountId, currency, row.balanceAfter, row.occurredAt) }
+        .defaultIfEmpty(BalanceResponse(accountId, currency, BigDecimal.ZERO, at))
     }
 }
