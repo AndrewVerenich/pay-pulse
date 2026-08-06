@@ -7,20 +7,24 @@ import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
 import org.springframework.stereotype.Component
 
+interface PaymentEventsListener {
+  fun onPaymentEvent(record: ConsumerRecord<String, String>, ack: Acknowledgment)
+}
+
 @Component
-class PaymentEventsListener(
+class DefaultPaymentEventsListener(
   private val balanceProjectionService: BalanceProjectionService,
-) {
-  private val log = LoggerFactory.getLogger(PaymentEventsListener::class.java)
+) : PaymentEventsListener {
+  private val log = LoggerFactory.getLogger(DefaultPaymentEventsListener::class.java)
 
   @KafkaListener(
     topics = ["\${paypulse.kafka.payment-events-topic}"],
     groupId = "\${paypulse.kafka.consumer-group:projection-balance}",
     containerFactory = "paymentEventsListenerContainerFactory",
   )
-  fun onPaymentEvent(record: ConsumerRecord<String, String>, ack: Acknowledgment) {
+  override fun onPaymentEvent(record: ConsumerRecord<String, String>, ack: Acknowledgment) {
     log.debug("Received payment event partition={} offset={} key={}", record.partition(), record.offset(), record.key())
-    balanceProjectionService.handlePaymentEvent(record.value())
+    balanceProjectionService.handlePaymentEvent(record.value()).block()
     ack.acknowledge()
   }
 }

@@ -1,30 +1,42 @@
 package com.paypulse.projection.config
 
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.MeterRegistry
+import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.jdbc.datasource.DataSourceTransactionManager
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory
 import org.springframework.kafka.core.ConsumerFactory
 import org.springframework.kafka.core.KafkaTemplate
 import org.springframework.kafka.listener.ContainerProperties.AckMode
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer
 import org.springframework.kafka.listener.DefaultErrorHandler
-import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.util.backoff.FixedBackOff
-import javax.sql.DataSource
 
 @Configuration
 class ProjectionConfiguration {
 
   @Bean
-  fun transactionManager(dataSource: DataSource): PlatformTransactionManager =
-    DataSourceTransactionManager(dataSource)
+  fun paypulseDltMessagesCounter(meterRegistry: MeterRegistry): Counter =
+    Counter.builder("paypulse_dlt_messages_total")
+      .tag("topic", "_none")
+      .description("Dead-letter publishes from projection-balance")
+      .register(meterRegistry)
 
   @Bean
-  fun deadLetterPublishingRecoverer(template: KafkaTemplate<String, String>): DeadLetterPublishingRecoverer =
-    DeadLetterPublishingRecoverer(template) { record, _ ->
-      TopicPartition(record.topic() + ".DLT", record.partition())
+  fun deadLetterPublishingRecoverer(
+    template: KafkaTemplate<String, String>,
+    meterRegistry: MeterRegistry,
+  ): DeadLetterPublishingRecoverer =
+    object : DeadLetterPublishingRecoverer(
+      template,
+      { record, _ -> TopicPartition(record.topic() + ".DLT", record.partition()) },
+    ) {
+      override fun accept(record: ConsumerRecord<*, *>, exception: Exception) {
+        meterRegistry.counter("paypulse_dlt_messages_total", "topic", record.topic()).increment()
+        super.accept(record, exception)
+      }
     }
 
   @Bean

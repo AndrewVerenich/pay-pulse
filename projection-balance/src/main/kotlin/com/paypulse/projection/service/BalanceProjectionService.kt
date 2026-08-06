@@ -2,81 +2,68 @@ package com.paypulse.projection.service
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.paypulse.projection.adapter.persistence.AccountBalanceRepository
+import com.paypulse.projection.adapter.persistence.BalanceEventRepository
 import org.slf4j.LoggerFactory
-import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.reactive.TransactionalOperator
+import reactor.core.publisher.Mono
 import java.math.BigDecimal
 import java.time.OffsetDateTime
 import java.util.UUID
 
+interface BalanceProjectionService {
+  fun handlePaymentEvent(rawJson: String): Mono<Void>
+}
+
 @Service
-class BalanceProjectionService(
-  private val jdbc: JdbcTemplate,
+class DefaultBalanceProjectionService(
+  private val balanceEventRepository: BalanceEventRepository,
+  private val accountBalanceRepository: AccountBalanceRepository,
+  private val transactionalOperator: TransactionalOperator,
   private val objectMapper: ObjectMapper,
-) {
-  private val log = LoggerFactory.getLogger(BalanceProjectionService::class.java)
+) : BalanceProjectionService {
+  private val log = LoggerFactory.getLogger(DefaultBalanceProjectionService::class.java)
 
-  @Transactional
-  fun handlePaymentEvent(rawJson: String) {
-    val node = objectMapper.readTree(rawJson)
-    val event = parse(node)
-
-    val reserved = jdbc.update(
-      """
-      INSERT INTO account_query.balance_events
-        (source_event_id, account_id, currency, delta, balance_after, occurred_at, aggregate_id)
-      VALUES (?, ?, ?, ?, 0, ?, ?)
-      ON CONFLICT (source_event_id) DO NOTHING
-      """.trimIndent(),
-      event.eventId,
-      event.accountId,
-      event.currency,
-      event.amount,
-      event.occurredAt,
-      event.paymentId,
+  override fun handlePaymentEvent(rawJson: String): Mono<Void> {
+    val event = parse(objectMapper.readTree(rawJson))
+    val flow = balanceEventRepository.tryInsertEvent(
+      sourceEventId = event.eventId,
+      accountId = event.accountId,
+      currency = event.currency,
+      delta = event.amount,
+      occurredAt = event.occurredAt,
+      aggregateId = event.paymentId,
     )
-    if (reserved == 0) {
-      log.debug("Skip duplicate event eventId={}", event.eventId)
-      return
-    }
+      .flatMap { _ ->
+        accountBalanceRepository.upsertReturningBalance(
+          accountId = event.accountId,
+          currency = event.currency,
+          delta = event.amount,
+          occurredAt = event.occurredAt,
+          sourceEventId = event.eventId,
+        )
+      }
+      .flatMap { newBalance ->
+        balanceEventRepository.updateBalanceAfter(event.eventId, newBalance)
+          .doOnSuccess {
+            log.debug(
+              "Balance projection eventId={} account={} delta={} balance_after={}",
+              event.eventId,
+              event.accountId,
+              event.amount,
+              newBalance,
+            )
+          }
+      }
+      .switchIfEmpty(
+        Mono.fromRunnable {
+          log.debug("Skip duplicate event eventId={}", event.eventId)
+        },
+      )
+      .then()
 
-    val newBalance: BigDecimal = jdbc.queryForObject(
-      """
-      INSERT INTO account_query.account_balance
-        (account_id, currency, balance, last_occurred_at, last_source_event_id)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT (account_id, currency) DO UPDATE SET
-        balance = account_query.account_balance.balance + EXCLUDED.balance,
-        last_occurred_at = GREATEST(account_query.account_balance.last_occurred_at, EXCLUDED.last_occurred_at),
-        last_source_event_id = EXCLUDED.last_source_event_id
-      RETURNING balance
-      """.trimIndent(),
-      BigDecimal::class.java,
-      event.accountId,
-      event.currency,
-      event.amount,
-      event.occurredAt,
-      event.eventId,
-    )
-
-    jdbc.update(
-      """
-      UPDATE account_query.balance_events
-      SET balance_after = ?
-      WHERE source_event_id = ?
-      """.trimIndent(),
-      newBalance,
-      event.eventId,
-    )
-
-    log.debug(
-      "Balance projection eventId={} account={} delta={} balance_after={}",
-      event.eventId,
-      event.accountId,
-      event.amount,
-      newBalance,
-    )
+    return transactionalOperator.transactional(flow)
   }
 
   private fun parse(node: JsonNode): PaymentInitiatedEvent {
