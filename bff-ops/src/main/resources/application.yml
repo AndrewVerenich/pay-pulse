@@ -1,0 +1,91 @@
+spring:
+  application:
+    name: bff-ops
+  main:
+    web-application-type: reactive
+  kafka:
+    bootstrap-servers: ${PAYPULSE_KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+server:
+  port: ${SERVER_PORT:8084}
+
+paypulse:
+  jwt:
+    secret: ${PAYPULSE_JWT_SECRET:0123456789abcdef0123456789abcdef0123456789abcdef}
+  bff:
+    payment-command-uri: ${PAYPULSE_PAYMENT_COMMAND_URI:http://localhost:8086}
+    account-query-uri: ${PAYPULSE_ACCOUNT_QUERY_URI:http://localhost:8082}
+    saga-orchestrator-uri: ${PAYPULSE_SAGA_ORCHESTRATOR_URI:http://localhost:8083}
+    payment-events-topic: ${PAYPULSE_PAYMENT_EVENTS_TOPIC:payment.events}
+    saga-events-topic: ${PAYPULSE_SAGA_EVENTS_TOPIC:saga.events}
+    fraud-rules-topic: ${PAYPULSE_FRAUD_RULES_TOPIC:fraud_rules}
+    fraud-alerts-topic: ${PAYPULSE_FRAUD_ALERTS_TOPIC:fraud_alerts}
+    recent-buffer-size: ${PAYPULSE_BFF_RECENT_BUFFER:200}
+    health:
+      probes:
+        - id: gateway
+          name: Auth Gateway
+          url: ${PAYPULSE_HEALTH_GATEWAY:http://auth-gateway:8090/actuator/health}
+          link: http://localhost:8090/actuator/health
+        - id: payment-command
+          name: Payment Command
+          url: ${PAYPULSE_HEALTH_PAYMENT_COMMAND:http://payment-command-service:8086/actuator/health}
+          link: http://localhost:8086/actuator/health
+        - id: account-query
+          name: Account Query
+          url: ${PAYPULSE_HEALTH_ACCOUNT_QUERY:http://account-query-service:8082/actuator/health}
+          link: http://localhost:8087/actuator/health
+        - id: projection-balance
+          name: Projection Balance
+          url: ${PAYPULSE_HEALTH_PROJECTION:http://projection-balance:8088/actuator/health}
+          link: http://localhost:8088/actuator/health
+        - id: saga-orchestrator
+          name: Saga Orchestrator
+          url: ${PAYPULSE_HEALTH_SAGA:http://payment-saga-orchestrator:8083/actuator/health}
+          link: http://localhost:8083/actuator/health
+        - id: rule-management
+          name: Rule Management
+          url: ${PAYPULSE_HEALTH_RULES:http://rule-management-service:8085/actuator/health}
+          link: http://localhost:8095/actuator/health
+        - id: bff-ops
+          name: BFF Ops
+          url: ${PAYPULSE_HEALTH_BFF:http://localhost:8084/actuator/health}
+          link: http://localhost:8085/actuator/health
+        - id: flink
+          name: Flink JobManager
+          url: ${PAYPULSE_HEALTH_FLINK:http://flink-jobmanager:8081/overview}
+          link: http://localhost:8081
+        - id: prometheus
+          name: Prometheus
+          url: ${PAYPULSE_HEALTH_PROMETHEUS:http://prometheus:9090/-/healthy}
+          link: http://localhost:9090
+        - id: grafana
+          name: Grafana
+          url: ${PAYPULSE_HEALTH_GRAFANA:http://grafana:3000/api/health}
+          link: http://localhost:3001
+        - id: kafka-ui
+          name: Kafka UI
+          url: ${PAYPULSE_HEALTH_KAFKA_UI:http://kafka-ui:8080/}
+          link: http://localhost:18088
+        - id: superset
+          name: Superset
+          url: ${PAYPULSE_HEALTH_SUPERSET:http://superset:8088/health}
+          link: http://localhost:18089
+        - id: airflow
+          name: Airflow
+          url: ${PAYPULSE_HEALTH_AIRFLOW:http://airflow-webserver:8080/health}
+          link: http://localhost:18087
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info
+
+logging:
+  level:
+    com.paypulse: INFO
