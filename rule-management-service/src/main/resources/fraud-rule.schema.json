@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FraudRuleSpec",
+  "description": "Спецификация правила фрода. Поля зеркальны Flink FraudRule (минус ruleId/version/enabled, которые добавляются сервисом при публикации).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "maxAmount",
+    "velocityWindowMs",
+    "velocityMaxCount",
+    "structuringThreshold",
+    "structuringWindowHours",
+    "structuringMinPayments"
+  ],
+  "properties": {
+    "maxAmount": { "type": "number", "minimum": 0 },
+    "velocityWindowMs": { "type": "integer", "minimum": 1000 },
+    "velocityMaxCount": { "type": "integer", "minimum": 1 },
+    "structuringThreshold": { "type": "number", "minimum": 0 },
+    "structuringWindowHours": { "type": "integer", "minimum": 1, "maximum": 168 },
+    "structuringMinPayments": { "type": "integer", "minimum": 2 }
+  }
+}

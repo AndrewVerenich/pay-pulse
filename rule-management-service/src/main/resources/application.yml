@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: rule-management-service
+  r2dbc:
+    url: r2dbc:postgresql://${PAYPULSE_DB_HOST:localhost}:${PAYPULSE_DB_PORT:5432}/${PAYPULSE_DB_NAME:paypulse}
+    username: ${PAYPULSE_DB_USER:postgres}
+    password: ${PAYPULSE_DB_PASSWORD:postgres}
+    pool:
+      initial-size: 2
+      max-size: 10
+
+server:
+  port: ${SERVER_PORT:8085}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info
+
+logging:
+  level:
+    com.paypulse: INFO
