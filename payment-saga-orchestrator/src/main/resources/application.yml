@@ -19,6 +19,8 @@ paypulse:
   saga:
     start-topic: saga.commands.start
     reply-topic: saga.replies
+    events-topic: saga.events
+    compensation-failed-topic: saga.compensation.failed
 
 saga:
   timeout:
