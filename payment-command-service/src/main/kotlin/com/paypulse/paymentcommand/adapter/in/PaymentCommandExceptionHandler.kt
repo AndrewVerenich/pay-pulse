@@ -15,6 +15,10 @@ class PaymentCommandExceptionHandler(
   private val meterRegistry: MeterRegistry,
 ) {
 
+  init {
+    meterRegistry.counter("paypulse_optimistic_lock_conflicts_total")
+  }
+
   @ExceptionHandler(IdempotencyConflictException::class)
   fun conflict(ex: IdempotencyConflictException): Mono<ResponseEntity<ErrorResponse>> {
     meterRegistry.counter("paypulse_payments_total", "result", "failed").increment()
