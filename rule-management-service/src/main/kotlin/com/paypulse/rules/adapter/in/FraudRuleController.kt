@@ -24,24 +24,17 @@ import reactor.core.publisher.Mono
 import java.net.URI
 import java.util.UUID
 
-interface FraudRuleController {
-  fun list(): Flux<FraudRuleDto>
-  fun create(request: CreateFraudRuleRequest): Mono<ResponseEntity<FraudRuleDto>>
-  fun update(id: UUID, request: UpdateFraudRuleRequest): Mono<FraudRuleDto>
-  fun delete(id: UUID): Mono<ResponseEntity<Void>>
-}
-
 @RestController
 @RequestMapping("/api/v1/fraud-rules")
-class DefaultFraudRuleController(
+class FraudRuleController(
   private val service: FraudRuleService,
-) : FraudRuleController {
+) {
 
   @GetMapping(produces = [MediaType.APPLICATION_JSON_VALUE])
-  override fun list(): Flux<FraudRuleDto> = service.list()
+  fun list(): Flux<FraudRuleDto> = service.list()
 
   @PostMapping(consumes = [MediaType.APPLICATION_JSON_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])
-  override fun create(@Valid @RequestBody request: CreateFraudRuleRequest): Mono<ResponseEntity<FraudRuleDto>> =
+  fun create(@Valid @RequestBody request: CreateFraudRuleRequest): Mono<ResponseEntity<FraudRuleDto>> =
     service.create(request).map { dto ->
       ResponseEntity.created(URI.create("/api/v1/fraud-rules/${dto.id}")).body(dto)
     }
@@ -51,13 +44,11 @@ class DefaultFraudRuleController(
     consumes = [MediaType.APPLICATION_JSON_VALUE],
     produces = [MediaType.APPLICATION_JSON_VALUE],
   )
-  override fun update(
-    @PathVariable id: UUID,
-    @Valid @RequestBody request: UpdateFraudRuleRequest,
-  ): Mono<FraudRuleDto> = service.update(id, request)
+  fun update(@PathVariable id: UUID, @Valid @RequestBody request: UpdateFraudRuleRequest): Mono<FraudRuleDto> =
+    service.update(id, request)
 
   @DeleteMapping("/{id}")
-  override fun delete(@PathVariable id: UUID): Mono<ResponseEntity<Void>> =
+  fun delete(@PathVariable id: UUID): Mono<ResponseEntity<Void>> =
     service.delete(id).thenReturn(ResponseEntity.noContent().build())
 }
 
