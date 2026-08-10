@@ -36,6 +36,20 @@ class KafkaConfig(
   }
 
   @Bean
+  fun sagaEventProducerFactory(): ProducerFactory<String, String> {
+    val props = HashMap<String, Any>()
+    props.putAll(kafkaProperties.buildProducerProperties())
+    props[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+    props[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.java
+    return DefaultKafkaProducerFactory(props)
+  }
+
+  @Bean
+  fun sagaEventKafkaTemplate(): KafkaTemplate<String, String> {
+    return KafkaTemplate(sagaEventProducerFactory())
+  }
+
+  @Bean
   fun sagaReplyConsumerFactory(): ConsumerFactory<String, SagaReply> {
     val props = HashMap<String, Any>()
     props.putAll(kafkaProperties.buildConsumerProperties())

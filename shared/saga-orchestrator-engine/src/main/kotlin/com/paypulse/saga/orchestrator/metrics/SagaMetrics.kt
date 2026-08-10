@@ -26,7 +26,7 @@ class SagaMetrics(
     getActiveGauge(sagaType).incrementAndGet()
   }
 
-  fun recordSagaCompleted(sagaType: String, status: SagaStatus) {
+  fun recordSagaCompleted(sagaType: String, status: SagaStatus, durationSeconds: Double) {
     val outcome = when (status) {
       SagaStatus.COMPLETED -> "completed"
       SagaStatus.COMPENSATED -> "compensated"
@@ -39,6 +39,12 @@ class SagaMetrics(
       .tag("outcome", outcome)
       .register(registry)
       .increment()
+
+    Timer.builder("paypulse_saga_duration_seconds")
+      .tag("saga_type", sagaType)
+      .tag("outcome", outcome)
+      .register(registry)
+      .record(Duration.ofMillis((durationSeconds * 1000).toLong()))
 
     getActiveGauge(sagaType).decrementAndGet()
     if (status == SagaStatus.COMPENSATED) {

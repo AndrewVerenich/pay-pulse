@@ -7,9 +7,11 @@ import com.paypulse.saga.orchestrator.dsl.StepDefinition
 import com.paypulse.saga.orchestrator.entity.SagaInstanceEntity
 import com.paypulse.saga.orchestrator.entity.SagaStepEntity
 import com.paypulse.saga.orchestrator.kafka.SagaCommandProducer
+import com.paypulse.saga.orchestrator.kafka.SagaLifecycleKafkaPublisher
 import com.paypulse.saga.orchestrator.metrics.SagaMetrics
 import com.paypulse.saga.orchestrator.repository.SagaInstanceRepository
 import com.paypulse.saga.orchestrator.repository.SagaStepRepository
+import com.paypulse.saga.orchestrator.service.CompensationFailureService
 import com.paypulse.saga.orchestrator.sse.SagaEventPublisher
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -28,7 +30,9 @@ class SagaOrchestrator(
   private val commandProducer: SagaCommandProducer,
   private val objectMapper: ObjectMapper,
   private val sagaMetrics: SagaMetrics,
-  private val eventPublisher: SagaEventPublisher
+  private val eventPublisher: SagaEventPublisher,
+  private val lifecyclePublisher: SagaLifecycleKafkaPublisher,
+  private val compensationFailureService: CompensationFailureService,
 ) {
   private val log = LoggerFactory.getLogger(SagaOrchestrator::class.java)
 
@@ -54,6 +58,7 @@ class SagaOrchestrator(
       .flatMap { saved ->
         sagaMetrics.recordSagaStarted(sagaType)
         eventPublisher.publishSagaEvent(saved)
+        lifecyclePublisher.publishStarted(saved)
         executeStep(saved, definition, definition.steps.first())
           .thenReturn(saved)
       }
@@ -71,11 +76,29 @@ class SagaOrchestrator(
             updateStepFromReply(step, reply, definition)
               .flatMap { updatedStep ->
                 eventPublisher.publishStepEvent(instance, updatedStep)
+                lifecyclePublisher.publishStep(instance, updatedStep)
                 processNextAction(instance, definition, reply)
               }
           }
       }
   }
+
+  fun retrySaga(sagaId: UUID): Mono<Void> =
+    instanceRepository.findBySagaId(sagaId)
+      .switchIfEmpty(Mono.error(SagaNotFoundException(sagaId)))
+      .flatMap { instance ->
+        val stepName = instance.currentStep
+          ?: return@flatMap Mono.error(IllegalStateException("Saga has no current step to retry"))
+        retryStep(instance.id!!, stepName)
+      }
+
+  fun forceComplete(sagaId: UUID): Mono<Void> =
+    instanceRepository.findBySagaId(sagaId)
+      .switchIfEmpty(Mono.error(SagaNotFoundException(sagaId)))
+      .flatMap { completeSaga(it, SagaStatus.COMPLETED) }
+
+  fun markResolved(sagaId: UUID): Mono<Void> =
+    compensationFailureService.markResolved(sagaId)
 
   fun retryStep(instanceId: Long, stepName: String): Mono<Void> {
     return instanceRepository.findById(instanceId)
@@ -349,10 +372,24 @@ class SagaOrchestrator(
       updatedAt = updatedAt,
       completedAt = completedAt
     )
+      .flatMap {
+        if (status == SagaStatus.FAILED) {
+          compensationFailureService.record(
+            updated,
+            "Saga failed at step ${instance.currentStep ?: "unknown"}",
+          )
+        } else {
+          Mono.empty()
+        }
+      }
       .doOnSuccess {
-        sagaMetrics.recordSagaCompleted(instance.sagaType, status)
+        val durationSeconds = java.time.Duration.between(instance.createdAt, updatedAt).toMillis() / 1000.0
+        sagaMetrics.recordSagaCompleted(instance.sagaType, status, durationSeconds)
         eventPublisher.publishSagaEvent(updated)
+        lifecyclePublisher.publishTerminal(updated)
       }
       .then()
   }
 }
+
+class SagaNotFoundException(sagaId: UUID) : RuntimeException("Saga not found: $sagaId")

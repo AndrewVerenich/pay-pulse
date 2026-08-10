@@ -30,6 +30,10 @@ class SagaStateMachine {
     val currentIdx = stepDefs.indexOfFirst { it.stepName == currentStepName }
 
     if (isCompensation) {
+      if (!replySuccess) {
+        val prevCompensable = findPreviousCompensableStep(stepDefs, steps, currentIdx)
+        return prevCompensable ?: SagaAction.Complete(SagaStatus.FAILED)
+      }
       return handleCompensationReply(stepDefs, steps, currentIdx)
     }
 
@@ -65,7 +69,6 @@ class SagaStateMachine {
       return SagaAction.Complete(SagaStatus.FAILED)
     }
 
-    // For COMPENSABLE or PIVOT failure: find last completed compensable step to compensate
     val lastCompensable = findLastCompensableStep(stepDefs, steps, failedIdx)
     return lastCompensable
       ?: SagaAction.Complete(SagaStatus.COMPENSATED)

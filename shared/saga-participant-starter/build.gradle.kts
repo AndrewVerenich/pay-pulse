@@ -13,6 +13,7 @@ dependencyManagement {
 dependencies {
   api(project(":shared:saga-model"))
 
+  api("org.springframework.boot:spring-boot-starter-webflux")
   implementation("org.springframework.boot:spring-boot-autoconfigure")
   implementation("org.springframework.kafka:spring-kafka")
   implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

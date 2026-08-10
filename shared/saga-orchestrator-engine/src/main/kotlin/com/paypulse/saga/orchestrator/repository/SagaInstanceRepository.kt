@@ -5,6 +5,7 @@ import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.reactive.ReactiveCrudRepository
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import java.time.LocalDateTime
 import java.util.UUID
 
 interface SagaInstanceRepository : ReactiveCrudRepository<SagaInstanceEntity, Long> {
@@ -22,9 +23,9 @@ interface SagaInstanceRepository : ReactiveCrudRepository<SagaInstanceEntity, Lo
     status: String,
     currentStep: String?,
     payload: String,
-    createdAt: java.time.LocalDateTime,
-    updatedAt: java.time.LocalDateTime,
-    completedAt: java.time.LocalDateTime? = null
+    createdAt: LocalDateTime,
+    updatedAt: LocalDateTime,
+    completedAt: LocalDateTime? = null
   ): Mono<SagaInstanceEntity>
 
   @Query(
@@ -41,8 +42,8 @@ interface SagaInstanceRepository : ReactiveCrudRepository<SagaInstanceEntity, Lo
     id: Long,
     status: String,
     currentStep: String?,
-    updatedAt: java.time.LocalDateTime,
-    completedAt: java.time.LocalDateTime? = null
+    updatedAt: LocalDateTime,
+    completedAt: LocalDateTime? = null
   ): Mono<Int>
 
   @Query(
@@ -57,7 +58,7 @@ interface SagaInstanceRepository : ReactiveCrudRepository<SagaInstanceEntity, Lo
   fun updatePayloadWithJsonb(
     id: Long,
     payload: String,
-    updatedAt: java.time.LocalDateTime
+    updatedAt: LocalDateTime
   ): Mono<SagaInstanceEntity>
 
   fun findBySagaId(sagaId: UUID): Mono<SagaInstanceEntity>
@@ -82,4 +83,14 @@ interface SagaInstanceRepository : ReactiveCrudRepository<SagaInstanceEntity, Lo
 
   @Query("SELECT COUNT(*) FROM saga.saga_instance WHERE status = :status")
   fun countByStatus(status: String): Mono<Long>
+
+  @Query(
+    """
+    SELECT * FROM saga.saga_instance
+    WHERE status IN ('FAILED', 'COMPENSATING')
+    ORDER BY updated_at DESC
+    LIMIT :limit
+    """,
+  )
+  fun findProblematic(limit: Int): Flux<SagaInstanceEntity>
 }
