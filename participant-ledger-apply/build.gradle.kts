@@ -21,6 +21,10 @@ dependencies {
   implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
   implementation("org.springframework.boot:spring-boot-starter-actuator")
   implementation("io.micrometer:micrometer-registry-prometheus")
+
+  testImplementation("org.springframework.boot:spring-boot-starter-test")
+  testImplementation("io.projectreactor:reactor-test")
+  testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
 }
 
 tasks.bootJar {
