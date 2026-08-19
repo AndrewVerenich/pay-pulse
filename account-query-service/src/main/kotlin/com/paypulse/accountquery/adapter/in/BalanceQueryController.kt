@@ -15,18 +15,14 @@ import reactor.core.publisher.Mono
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
 
-interface BalanceQueryController {
-  fun getBalance(accountId: String, currency: String, at: String?): Mono<BalanceResponse>
-}
-
 @RestController
 @RequestMapping("/api/v1/accounts")
-class DefaultBalanceQueryController(
+class BalanceQueryController(
   private val balanceQueryService: BalanceQueryService,
-) : BalanceQueryController {
+) {
 
   @GetMapping("/{accountId}/balance", produces = [MediaType.APPLICATION_JSON_VALUE])
-  override fun getBalance(
+  fun getBalance(
     @PathVariable accountId: String,
     @RequestParam(defaultValue = "USD") currency: String,
     @RequestParam(required = false) at: String?,
