@@ -1,0 +1,22 @@
+server:
+  port: ${SERVER_PORT:3000}
+
+spring:
+  application:
+    name: ops-ui-server
+  web:
+    resources:
+      add-mappings: false
+
+paypulse:
+  auth-gateway-uri: ${PAYPULSE_AUTH_GATEWAY_URI:http://localhost:8090}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    org.springframework.web.reactive: WARN
