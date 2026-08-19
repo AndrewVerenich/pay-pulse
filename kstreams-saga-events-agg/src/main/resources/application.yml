@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: kstreams-saga-events-agg
+  kafka:
+    bootstrap-servers: ${PAYPULSE_KAFKA_BOOTSTRAP:localhost:9092}
+    streams:
+      application-id: paypulse-saga-events-agg
+      properties:
+        processing.guarantee: at_least_once
+      auto-startup: true
+
+server:
+  port: ${SERVER_PORT:8096}
+
+paypulse:
+  saga:
+    events-topic: ${PAYPULSE_SAGA_EVENTS_TOPIC:saga.events}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, prometheus, info
+
+logging:
+  level:
+    com.paypulse: INFO
