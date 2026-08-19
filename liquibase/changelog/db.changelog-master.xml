@@ -11,4 +11,7 @@
   <include file="004-event-store-account-id.xml" relativeToChangelogFile="true"/>
   <include file="005-auth-schema.xml" relativeToChangelogFile="true"/>
   <include file="006-saga-schema.xml" relativeToChangelogFile="true"/>
+  <include file="007-rule-management.xml" relativeToChangelogFile="true"/>
+  <include file="008-saga-compensation-failure.xml" relativeToChangelogFile="true"/>
+  <include file="009-airflow-schema.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+  <changeSet id="701-schema-rule-management" author="paypulse">
+    <sql>CREATE SCHEMA IF NOT EXISTS rule_management</sql>
+  </changeSet>
+
+  <changeSet id="702-fraud-rule" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE rule_management.fraud_rule (
+        id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name       VARCHAR(128) NOT NULL UNIQUE,
+        enabled    BOOLEAN NOT NULL DEFAULT true,
+        json_spec  JSONB NOT NULL,
+        version    BIGINT NOT NULL DEFAULT 1,
+        updated_at TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now()))
+      )
+      ]]>
+    </sql>
+  </changeSet>
+
+  <changeSet id="703-rule-management-outbox" author="paypulse">
+    <sql>
+      <![CDATA[
+      CREATE TABLE rule_management.outbox (
+        id               BIGSERIAL PRIMARY KEY,
+        partitioning_key VARCHAR(255) NOT NULL,
+        type             VARCHAR(128) NOT NULL,
+        payload          JSONB NOT NULL,
+        created_at       TIMESTAMPTZ(3) NOT NULL DEFAULT (timezone('utc', now()))
+      )
+      ]]>
+    </sql>
+    <sql>ALTER TABLE rule_management.outbox REPLICA IDENTITY FULL</sql>
+    <sql>CREATE INDEX idx_rule_management_outbox_created ON rule_management.outbox (created_at)</sql>
+  </changeSet>
+
+  <changeSet id="704-seed-default-fraud-rule" author="paypulse">
+    <sql>
+      <![CDATA[
+      INSERT INTO rule_management.fraud_rule (id, name, enabled, json_spec, version)
+      VALUES (
+        '00000000-0000-0000-0000-000000000001',
+        'default-velocity',
+        true,
+        '{"maxAmount":10000,"velocityWindowMs":3600000,"velocityMaxCount":20,"structuringThreshold":9900,"structuringWindowHours":24,"structuringMinPayments":5}'::jsonb,
+        1
+      )
+      ON CONFLICT (name) DO NOTHING
+      ]]>
+    </sql>
+  </changeSet>
+
+</databaseChangeLog>
