@@ -3,7 +3,6 @@
 - Status: Accepted
 - Date: 2026-06-18
 - Context owner: payment-command + participant-ledger-apply teams
-- Related plan section: [`docs/pay-pulse-platform-plan.md`](../pay-pulse-platform-plan.md) §4 «Event Sourcing для ledger», S0–S1
 - Related ADRs: [0001](0001-balance-events-vs-snapshots.md), [0002](0002-saga-orchestration-vs-choreography.md)
 
 ## Context

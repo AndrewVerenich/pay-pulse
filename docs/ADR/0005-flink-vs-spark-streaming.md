@@ -3,7 +3,6 @@
 - Status: Accepted
 - Date: 2026-06-18
 - Context owner: flink-payment-intelligence / streaming team
-- Related plan section: [`docs/pay-pulse-platform-plan.md`](../pay-pulse-platform-plan.md) §4 «Flink с broadcast rules», stage S4–S5
 - Related ADRs: [0006](0006-analytics-split-superset-vs-react.md)
 
 ## Context
@@ -134,7 +133,7 @@ Rules hot-reload: update `rule_management.fraud_rule` → outbox CDC → `fraud_
 
 - [ADR 0006](0006-analytics-split-superset-vs-react.md) — Flink → Kafka → ClickHouse; BI = Superset, не Flink UI.
 - [ADR 0008](0008-no-distributed-tracing-mvp.md) — нет OTel traces через Flink operators в MVP.
-- Stages: [`docs/stages/S4.md`](../stages/S4.md), [`S5.md`](../stages/S5.md); chaos: [`docs/chaos.md`](../chaos.md).
+- Chaos: [`docs/chaos.md`](../chaos.md).
 
 **Revisit triggers**
 

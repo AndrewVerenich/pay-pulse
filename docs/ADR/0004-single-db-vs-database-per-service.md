@@ -3,7 +3,6 @@
 - Status: Accepted
 - Date: 2026-06-18
 - Context owner: platform / Liquibase / Debezium
-- Related plan section: [`docs/pay-pulse-platform-plan.md`](../pay-pulse-platform-plan.md) § structure, S0 infra
 - Related ADRs: [0002](0002-saga-orchestration-vs-choreography.md), [0003](0003-event-sourcing-scope-ledger-only.md)
 
 ## Context
@@ -77,7 +76,7 @@ Cross-schema FK **запрещены by design** — связи только п�
 
 - [ADR 0002](0002-saga-orchestration-vs-choreography.md) — saga state в schema `saga`.
 - [ADR 0003](0003-event-sourcing-scope-ledger-only.md) — `event_store` в `payment_command`.
-- Stages: [`docs/stages/S2.md`](../stages/S2.md), S7 analytics overlay.
+- Analytics overlay: `compose.analytics.yml`.
 
 **Revisit triggers**
 

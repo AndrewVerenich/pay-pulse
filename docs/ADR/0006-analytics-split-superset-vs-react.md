@@ -3,7 +3,6 @@
 - Status: Accepted
 - Date: 2026-06-18
 - Context owner: analytics + ops-ui teams
-- Related plan section: [`docs/pay-pulse-platform-plan.md`](../pay-pulse-platform-plan.md) §7 Superset, §8 Ops UI, stages S3 / S6 / S7 / S8
 - Related ADRs: [0005](0005-flink-vs-spark-streaming.md), [0008](0008-no-distributed-tracing-mvp.md)
 
 ## Context
@@ -70,7 +69,6 @@ React **не** рендерит dbt marts; Superset **не** владеет saga
 
 - [ADR 0005](0005-flink-vs-spark-streaming.md) — stream path feeds both Ops and CH.
 - [ADR 0008](0008-no-distributed-tracing-mvp.md) — нет Tempo UI; Ops + Grafana заменяют trace drill-down в MVP.
-- Stages: [`docs/stages/S3.md`](../stages/S3.md), [`S6.md`](../stages/S6.md), [`S7.md`](../stages/S7.md), [`S8.md`](../stages/S8.md).
 
 **Revisit triggers**
 

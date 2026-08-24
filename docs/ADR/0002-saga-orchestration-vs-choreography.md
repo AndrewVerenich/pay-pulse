@@ -3,7 +3,6 @@
 - Status: Accepted
 - Date: 2026-06-18
 - Context owner: payment-saga-orchestrator + participant teams
-- Related plan section: [`docs/pay-pulse-platform-plan.md`](../pay-pulse-platform-plan.md) §4 «Saga Orchestration + DSL», stage S2
 - Related ADRs: [0003](0003-event-sourcing-scope-ledger-only.md), [0004](0004-single-db-vs-database-per-service.md)
 
 ## Context
@@ -77,7 +76,6 @@ Choreography **не** используется как основной control-p
 
 - [ADR 0001](0001-balance-events-vs-snapshots.md) — balance projection остаётся отдельной от saga state.
 - [ADR 0003](0003-event-sourcing-scope-ledger-only.md) — ledger пишет в `event_store`; сага не заменяет ES.
-- Stage docs: [`docs/stages/S2.md`](../stages/S2.md), [`S6.md`](../stages/S6.md).
 
 **Revisit triggers**
 

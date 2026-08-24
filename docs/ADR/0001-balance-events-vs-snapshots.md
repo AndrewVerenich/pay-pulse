@@ -3,7 +3,6 @@
 - Status: Accepted
 - Date: 2026-05-10
 - Context owner: payment-command + projection-balance teams
-- Related plan section: [`docs/pay-pulse-platform-plan.md`](../pay-pulse-platform-plan.md) §3, §4 "Core data flow"
 - Reference baseline: `distributed-backend-platform/event-sourcing-cqrs-banking` (snapshot pattern)
 
 ## Context
