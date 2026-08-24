@@ -58,7 +58,7 @@ Cross-schema FK **запрещены by design** — связи только п�
 
 ## Alternatives considered
 
-1. **Отдельный Postgres на каждый сервис** — deferred на production hardening; слишком тяжёлый cold-start для S0–S10 demo.
+1. **Отдельный Postgres на каждый сервис** — deferred на production hardening; слишком тяжёлый cold-start для Compose demo.
 2. **Shared tables без схем** (`public` kitchen sink) — rejected: стирает границы контекстов, усложняет Debezium include lists.
 3. **Postgres OLTP + отдельный Postgres только для Airflow** — reasonable later; сейчас schema `airflow` достаточен.
 4. **Schema-per-service + Postgres RDS с IAM roles сразу** — out of scope для Compose MVP.

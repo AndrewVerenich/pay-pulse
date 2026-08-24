@@ -98,7 +98,7 @@ Rules hot-reload: update `rule_management.fraud_rule` → outbox CDC → `fraud_
 - Native broadcast state: rule CRUD (`rule-management-service`) → CDC → Kafka → Flink без redeploy job.
 - Keyed process + timers хорошо выражают velocity / session-like checks.
 - Side outputs дают чистый контракт для BFF SSE (`fraud_alerts`) и DLT.
-- Prometheus metrics на job уровне (records/sec, checkpoint, backpressure) стыкуются с S8.
+- Prometheus metrics на job уровне (records/sec, checkpoint, backpressure) стыкуются с observability overlay.
 - Согласовано с clickstream reference — меньше «двух streaming стеков» в портфолио.
 
 ### Negative / accepted limitations
@@ -110,7 +110,7 @@ Rules hot-reload: update `rule_management.fraud_rule` → outbox CDC → `fraud_
 
 ## Alternatives considered
 
-1. **Spark Structured Streaming** — rejected для fraud alerts: micro-batch latency + слабее broadcast-rules story для S5 demo.
+1. **Spark Structured Streaming** — rejected для fraud alerts: micro-batch latency + слабее broadcast-rules story для hot-reload demo.
 2. **Kafka Streams only** — considered для простых aggregations; rejected как primary fraud engine (нет первоклассного broadcast state / Flink-parity с reference AML graph). Используется точечно: `kstreams-saga-events-agg`.
 3. **Rules in participant-fraud-check only (sync Redis score)** — insufficient alone: нужен continuous scoring + alerts stream; participant читает last score, Flink его производит.
 4. **Flink SQL / Table API only** — rejected: custom AML structuring и scoring удобнее DataStream + Kotlin functions.

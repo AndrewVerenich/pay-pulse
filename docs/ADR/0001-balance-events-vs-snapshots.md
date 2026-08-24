@@ -23,7 +23,7 @@ and CQRS read models. The reference platform `event-sourcing-cqrs-banking` solve
 PayPulse's analytical workload differs:
 
 1. The single aggregate today (`Payment`) is short-lived: 1–3 events per `payment_id`
-   in steady state (`Initiated → Authorized → Settled` planned for S2). Snapshotting
+   in steady state (`Initiated → Authorized → Settled`). Snapshotting
    a payment is unnecessary — full replay is O(3).
 2. The actually queried temporal axis is **per-account**, not per-aggregate
    (`/api/v1/accounts/{id}/balance?asOf=...`). Account balance is the
@@ -63,10 +63,10 @@ Positive
 Negative / accepted limitations
 
 - `balance_events` grows linearly with the number of events. We accept this:
-  partition pruning by `occurred_at` (planned S7 with ClickHouse / Postgres
-  partitioning) keeps it bounded.
+  partition pruning by `occurred_at` (ClickHouse / Postgres partitioning later)
+  keeps it bounded.
 - We lose the ability to "load the Payment aggregate at version V" cheaply
-  *if* in S2 a payment ever accumulates a long event tail. If that becomes
+  *if* a payment ever accumulates a long event tail. If that becomes
   real, we will introduce snapshots **only for the `Payment` aggregate**, not
   retroactively for accounts.
 

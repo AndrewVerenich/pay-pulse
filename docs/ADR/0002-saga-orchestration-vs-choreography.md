@@ -19,7 +19,7 @@ PayPulse проводит платёж через четыре участник�
 - **Choreography**: каждый сервис слушает события предыдущего и сам решает «что дальше». Слабая связность, но глобальное состояние размазано по топикам; stuck detection, force-complete и порядок compensation приходится выводить эвристиками.
 - **Orchestration**: центральный координатор владеет порядком шагов, персистит состояние и шлёт command/reply.
 
-Платформенный план (S6) явно требует Ops UI для stuck sagas, force-complete / retry / mark-resolved и трекинга `saga.compensation.failed`. Это плохо ложится на чистую choreography без отдельного «observability-агрегатора состояния».
+Ops UI требует stuck sagas, force-complete / retry / mark-resolved и трекинг `saga.compensation.failed`. Это плохо ложится на чистую choreography без отдельного «observability-агрегатора состояния».
 
 Reference baseline: `distributed-backend-platform/saga-orchestrator` (Kotlin DSL + SEC model).
 
@@ -56,7 +56,7 @@ Choreography **не** используется как основной control-p
 ## Alternatives considered
 
 1. **Choreography-only** (каждый participant слушает `payment.events` / соседние replies) — rejected: плохой fit для stuck-saga admin, SEC documentation и единого timeline в `/payments/:id`.
-2. **Temporal / Cadence / Conductor** — rejected для MVP: отдельный cluster, worker SDK, ops footprint несовместим с Compose-demo за одну неделю на этап.
+2. **Temporal / Cadence / Conductor** — rejected для MVP: отдельный cluster, worker SDK, ops footprint несовместим с Compose-demo.
 3. **2PC / XA** — rejected: cross-service locks, несовместимо с async Kafka и compensation-first дизайном.
 4. **Hybrid** (orchestrator только для ledger, остальное choreography) — rejected как premature complexity; четыре шага достаточно малы для одного definition.
 

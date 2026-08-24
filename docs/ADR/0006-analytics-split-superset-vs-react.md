@@ -14,7 +14,7 @@
 
 Строить всю аналитику в React (`ops-dashboard-ui`) = дублировать BI (filters, pivots, exports, access for non-engineers). Класть live ops в Superset = бороться с SSE/WebSocket и write-actions через BI.
 
-Grafana (S8) закрывает **runtime / RED / infra metrics**, не business marts.
+Grafana закрывает **runtime / RED / infra metrics**, не business marts.
 
 ## Decision
 
@@ -48,9 +48,9 @@ React **не** рендерит dbt marts; Superset **не** владеет saga
 
 ## Alternatives considered
 
-1. **Всё в React** (charts на ClickHouse HTTP) — rejected: объём BI-фич и S7 acceptance (provisioned Superset dashboards).
+1. **Всё в React** (charts на ClickHouse HTTP) — rejected: объём BI-фич и требование provisioned Superset dashboards.
 2. **Всё в Superset** включая live — rejected: нет хорошего fit для SSE, JWT ops actions, StepTimeline.
-3. **Metabase вместо Superset** — viable alternative; Superset выбран ближе к lakehouse reference / plan.
+3. **Metabase вместо Superset** — viable alternative; Superset выбран ближе к lakehouse reference.
 4. **Grafana только + SQL datasource на CH** — rejected как единственный BI: слабее semantic layer / dbt mart governance story.
 
 ## Code pointers

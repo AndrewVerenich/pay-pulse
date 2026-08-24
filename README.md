@@ -490,7 +490,6 @@ pay-pulse/
 ├── compose.analytics.yml
 └── docs/
     ├── ADR/                      # 0001–0008
-    ├── architecture/             # индекс + ADR links
     ├── demo/                     # .http
     ├── chaos.md
     └── screenshots/
@@ -598,5 +597,3 @@ pay-pulse/
 | [0006](docs/ADR/0006-analytics-split-superset-vs-react.md) | Superset vs React Ops |
 | [0007](docs/ADR/0007-jwt-hs256-and-redis-blacklist.md) | HS256 + Redis blacklist |
 | [0008](docs/ADR/0008-no-distributed-tracing-mvp.md) | Metrics-first, no tracing MVP |
-
-Архитектурный индекс: [docs/architecture/README.md](docs/architecture/README.md).
