@@ -1,0 +1,37 @@
+name: paypulse
+version: 1.0.0
+config-version: 2
+
+profile: paypulse
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  paypulse:
+    staging:
+      +materialized: view
+      +tags: ["staging"]
+    intermediate:
+      +materialized: view
+      +tags: ["intermediate"]
+    dimensions:
+      +materialized: table
+      +tags: ["dimensions"]
+    facts:
+      +materialized: table
+      +tags: ["facts"]
+    marts:
+      +materialized: table
+      +tags: ["marts"]
+
+vars:
+  structuring_threshold: 9900

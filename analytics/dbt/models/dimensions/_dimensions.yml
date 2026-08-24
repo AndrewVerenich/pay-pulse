@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: dim_account
+    columns:
+      - name: account_sk
+        tests: [not_null, unique]
+      - name: account_id
+        tests: [not_null, unique]
+
+  - name: dim_merchant
+    columns:
+      - name: merchant_sk
+        tests: [not_null, unique]
+      - name: merchant_id
+        tests: [not_null, unique]
+
+  - name: dim_currency
+    columns:
+      - name: currency_sk
+        tests: [not_null, unique]
+      - name: currency_code
+        tests: [not_null, unique]
+
+  - name: dim_rule
+    columns:
+      - name: rule_sk
+        tests: [not_null, unique]
+      - name: rule_id
+        tests: [not_null, unique]

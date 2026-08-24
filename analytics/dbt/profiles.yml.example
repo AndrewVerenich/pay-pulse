@@ -1,0 +1,16 @@
+# Copy to ~/.dbt/profiles.yml or pass via DBT_PROFILES_DIR.
+# Secrets via env vars — do not commit real passwords.
+
+paypulse:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      schema: paypulse_analytics
+      host: "{{ env_var('CLICKHOUSE_HOST', 'localhost') }}"
+      port: "{{ env_var('CLICKHOUSE_PORT', '8124') | int }}"
+      user: "{{ env_var('CLICKHOUSE_USER', 'default') }}"
+      password: "{{ env_var('CLICKHOUSE_PASSWORD', '') }}"
+      secure: false
+      verify: false
+      threads: 4

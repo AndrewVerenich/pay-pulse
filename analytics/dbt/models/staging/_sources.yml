@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: paypulse_analytics
+    tables:
+      - name: payment_events_raw
+      - name: fraud_alerts_raw
+      - name: payment_metrics_hourly_raw
+      - name: saga_events_raw

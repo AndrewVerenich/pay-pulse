@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_payment_events
+    columns:
+      - name: event_id
+        tests: [not_null, unique]
+      - name: amount
+        tests:
+          - positive_amount
+      - name: currency
+        tests: [not_null]
+
+  - name: stg_fraud_alerts
+    columns:
+      - name: alert_id
+        tests: [not_null, unique]
+      - name: score
+        tests:
+          - fraud_score_in_range
+
+  - name: stg_payment_metrics_hourly
+    columns:
+      - name: currency
+        tests: [not_null]
+      - name: total_amount
+        tests:
+          - positive_amount
+
+  - name: stg_saga_events
+    columns:
+      - name: saga_id
+        tests: [not_null]
