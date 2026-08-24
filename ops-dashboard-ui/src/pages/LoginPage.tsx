@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/Card";
 
 const schema = z.object({
   username: z.string().min(3, "Min 3 characters"),
-  password: z.string().min(6, "Min 6 characters"),
+  password: z.string().min(5, "Min 5 characters"),
 });
 
 type FormValues = z.infer<typeof schema>;
