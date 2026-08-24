@@ -55,7 +55,7 @@ JWT берётся **один раз** до `setUp` (`java.net.http` → `POST /
    - headers: `Authorization: Bearer …`, `Content-Type: application/json`, `Idempotency-Key`;
    - body: `accountId`, `amount`, `currency: USD`, `merchantId`.
 
-4. **Check (per request)** — статус из `{200, 201, 202, 409}` → OK, иначе KO.
+4. **Check (per request)** — статус из `{200, 201, 202, 409}` → OK.
 
 5. **Assertion (вся симуляция)** — `global().successfulRequests().percent().gt(95)`  
    Gradle `:load-test:gatlingRun` падает, если доля OK ≤ 95%.
@@ -78,14 +78,14 @@ Gatling смотрит **только HTTP create** на краю. Сага, Fli
 и на optimistic concurrency (`aggregate_id, version`). Burst не должен валиться из‑за редких
 lock-конфликтов на одном `accountId`. 409 **не** отделяет «дубль ключа» от «проигранный version».
 
-**Что попадает в KO (ломает 95%):**
+**Не успех:**
 
 - `401` / `403` — токен истёк или gateway не пускает;
 - `400` — валидация body (в этом сценарии payload валидный);
 - `5xx` / обрыв соединения — gateway, command, Postgres;
 - request timeout Gatling.
 
-Целевой RPS для CI — **1000 × 5 мин**. На ноутбуке — 50–100. Симуляция **не** проверяет,
+Целевой RPS — **1000 × 5 мин**. На ноутбуке — 50–100. Симуляция **не** проверяет,
 что фактический RPS равен `GATLING_TARGET_RPS`: смотри графики в HTML-отчёте
 (если latency растёт, in-flight копится, достигнутый RPS падает).
 
@@ -180,7 +180,7 @@ JVM в `build.gradle.kts`: `-Xmx2G` и `--add-opens` (Gatling + JDK 21).
 
 ## Результаты
 
-После прогона: `load-test/reports/<timestamp>/index.html` — OK/KO, latency percentiles,
+После прогона: `load-test/reports/<timestamp>/index.html` — OK, latency percentiles,
 достигнутый RPS. Assertion >95% success отражается в статусе Gradle.
 
 Опубликованный отчёт: _(ссылка)_

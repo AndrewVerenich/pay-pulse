@@ -1,6 +1,6 @@
 # PayPulse Observability
 
-Prometheus + Grafana + exporters для local demo и интервью.
+Prometheus + Grafana + exporters.
 
 > [ADR 0008](../docs/ADR/0008-no-distributed-tracing-mvp.md) — **metrics first**, без Tempo/Jaeger в MVP.
 
@@ -29,10 +29,8 @@ Overlays:
 # + Flink :9249
 docker compose -f docker-compose.yml -f compose.stream.yml -f compose.observability.yml up -d
 
-# Analytics лучше отдельно (RAM)
 docker compose -f docker-compose.yml -f compose.analytics.yml up -d
 
-# cAdvisor (часто падает на snap-docker: RO /var/lib/docker)
 docker compose -f docker-compose.yml -f compose.observability.yml --profile cadvisor up -d
 ```
 
@@ -44,25 +42,8 @@ docker compose -f docker-compose.yml -f compose.observability.yml --profile cadv
 | Grafana | http://localhost:3001 | admin / admin |
 | Kafka exporter | http://localhost:9308/metrics | — |
 | Postgres exporter | http://localhost:9187/metrics | — |
-| cAdvisor | http://localhost:8089 | profile `cadvisor` |
 | Ops `/health` | http://localhost:3000/health | ops login |
 
-## Scrape targets
-
-| Job | Target | Notes |
-|-----|--------|-------|
-| auth-gateway | `:8090/actuator/prometheus` | |
-| payment-command | `:8086/...` | **не** 8080 |
-| account-query | `:8082/...` | |
-| projection-balance | `:8088/...` | |
-| saga-orchestrator | `:8083/...` | |
-| bff-ops | `:8084/...` | |
-| rule-management | `:8085/...` | |
-| kstreams-saga-agg | `:8096/...` | |
-| participant-* | `:8091–8094` | |
-| flink | `flink-jobmanager:9249` | optional DOWN без stream overlay |
-| kafka-exporter | `:9308` | |
-| postgres-exporter | `:9187` | |
 
 ## Business metrics (`paypulse_*`)
 
@@ -116,10 +97,3 @@ curl -s http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job:
 curl -s http://localhost:9090/api/v1/rules | jq '.data.groups[].rules[].name'
 curl -s http://localhost:8090/actuator/prometheus | grep paypulse_
 ```
-
-## Follow-ups
-
-- Kafka broker JMX exporter (optional).
-- ClickHouse native Prometheus endpoint.
-- Alertmanager → Slack (out of scope).
-- Distributed tracing — см. revisit в [ADR 0008](../docs/ADR/0008-no-distributed-tracing-mvp.md).

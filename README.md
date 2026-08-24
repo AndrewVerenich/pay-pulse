@@ -2,16 +2,6 @@
 
 **Real-Time Payment Intelligence Platform** — платформа приёма и проведения платежей с live-антифродом, аудитом и операционным контролем.
 
-> Один `docker compose` → платёж → сага → fraud alert → Grafana / Superset. Учебный / portfolio проект уровня senior backend & data engineer.
-
-| Документ | Зачем |
-|----------|--------|
-| [ADR index](#adr-index) | Архитектурные решения |
-| [Chaos cookbook](docs/chaos.md) | 5 kill-сценариев |
-| [Demo `.http`](docs/demo/) | Интервью-сценарии |
-
----
-
 ## Оглавление
 
 1. [💼 Бизнес-идея](#-бизнес-идея)
@@ -366,8 +356,6 @@ UI: http://localhost:3000 (`admin`/`admin`).
 | RAM (core + Flink + obs) | 16 GB | 24 GB |
 | RAM (+ analytics) | 24 GB | 32 GB / по частям |
 
-> На ноутбуке с ограниченной RAM поднимайте overlays **по очереди**: сначала core, потом `compose.stream.yml` **или** `compose.analytics.yml` **или** `compose.observability.yml`.
-
 ---
 
 ## 🚀 Быстрый старт
@@ -415,8 +403,6 @@ curl -s http://localhost:8090/auth/login \
 | account-query (host) | http://localhost:8087 → :8082 | internal |
 | rule-management (host) | http://localhost:8095 → :8085 | internal |
 | kstreams metrics | http://localhost:8096/actuator/prometheus | — |
-
-> На некоторых snap-docker хостах publish отдельных портов (nginx/Python) может висеть; Spring/Netty и Prometheus/Grafana обычно доступны. Обход: Docker network / `docker exec`.
 
 ---
 
@@ -597,23 +583,6 @@ pay-pulse/
 - [x] Demo `.http` (5 историй)
 - [x] ADR 0001–0008
 - [x] Sub-READMEs ключевых модулей
-
----
-
-## 🎤 Talking points для интервью
-
-| Вопрос | Короткий ответ | Куда смотреть |
-|--------|----------------|---------------|
-| Почему не choreography? | Нужен global saga state, stuck admin, явный SEC | [ADR 0002](docs/ADR/0002-saga-orchestration-vs-choreography.md), `PaymentSagaConfiguration.kt` |
-| Почему ES не везде? | ES только для payment/ledger audit; остальные — idempotent commands | [ADR 0003](docs/ADR/0003-event-sourcing-scope-ledger-only.md) |
-| Почему один Postgres? | Schema-per-service + один Liquibase/Debezium для demo; split позже | [ADR 0004](docs/ADR/0004-single-db-vs-database-per-service.md) |
-| Почему Flink, не Spark? | Low-latency keyed + broadcast rules без рестарта | [ADR 0005](docs/ADR/0005-flink-vs-spark-streaming.md), `flink-graph.md` |
-| Зачем три UI? | Ops (сек) ≠ BI (мин) ≠ infra metrics | [ADR 0006](docs/ADR/0006-analytics-split-superset-vs-react.md) |
-| Как инвалидировать JWT? | Redis blacklist по `jti` + refresh family revoke | [ADR 0007](docs/ADR/0007-jwt-hs256-and-redis-blacklist.md) |
-| Где tracing? | MVP: metrics + `paymentId`/`sagaId` correlation | [ADR 0008](docs/ADR/0008-no-distributed-tracing-mvp.md) |
-| Как не двойно списать? | Outbox + participant `processed_commands` + pivot semantics | ledger handler + saga engine |
-| Как порядок по счёту? | Kafka key = `accountId` | Debezium / payment.events |
-| Как менять fraud rules live? | Outbox → compact `fraud_rules` → Flink broadcast | rule-management + Flink |
 
 ---
 

@@ -201,22 +201,22 @@ flowchart TB
 erDiagram
   dim_account {
     string account_sk PK
-    string account_id NK
+    string account_id UK "natural key"
   }
   dim_merchant {
     string merchant_sk PK
-    string merchant_id NK
+    string merchant_id UK "natural key"
     datetime valid_from
     datetime valid_to
-    uint8 is_current
+    int is_current
   }
   dim_currency {
     string currency_sk PK
-    string currency_code NK
+    string currency_code UK "natural key"
   }
   dim_rule {
     string rule_sk PK
-    string rule_id NK
+    string rule_id UK "natural key"
   }
   fct_payments {
     string payment_sk PK

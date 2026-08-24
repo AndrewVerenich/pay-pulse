@@ -273,8 +273,6 @@ docker compose -f docker-compose.yml -f compose.stream.yml -f compose.observabil
 Остановка overlay: `docker compose -f docker-compose.yml -f compose.stream.yml stop`.  
 Полная очистка checkpoints: `docker compose down -v`.
 
-> На ноутбуке не поднимайте stream вместе с analytics + observability, если мало RAM.
-
 ---
 
 ## 🌐 URL сервисов
