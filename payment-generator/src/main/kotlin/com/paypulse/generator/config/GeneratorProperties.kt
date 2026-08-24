@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class GeneratorProperties(
   val enabled: Boolean = true,
   val scenariosEnabled: Boolean = true,
+  /** When true, traffic rotates normal/structuring/velocity/geo forever (best for dashboards). */
+  val continuousDemo: Boolean = true,
   val baseUrl: String = "http://localhost:8090",
   val accessToken: String = "",
   val loginUsername: String = "admin",

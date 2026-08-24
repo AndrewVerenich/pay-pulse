@@ -366,7 +366,8 @@ services:
       SERVER_PORT: "8097"
       PAYPULSE_GATEWAY_URL: http://auth-gateway:8090
       PAYPULSE_GENERATOR_ENABLED: "true"
-      PAYPULSE_GENERATOR_INTERVAL_MS: "5000"
+      PAYPULSE_GENERATOR_CONTINUOUS_DEMO: "true"
+      PAYPULSE_GENERATOR_INTERVAL_MS: "1500"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8097/actuator/health | grep -q UP"]
       interval: 10s

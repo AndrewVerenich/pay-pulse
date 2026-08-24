@@ -9,6 +9,7 @@ paypulse:
   generator:
     enabled: ${PAYPULSE_GENERATOR_ENABLED:true}
     scenarios-enabled: ${PAYPULSE_GENERATOR_SCENARIOS_ENABLED:true}
+    continuous-demo: ${PAYPULSE_GENERATOR_CONTINUOUS_DEMO:true}
     base-url: ${PAYPULSE_GATEWAY_URL:http://localhost:8090}
     access-token: ${PAYPULSE_ACCESS_TOKEN:}
     login-username: ${PAYPULSE_GENERATOR_LOGIN_USER:admin}
