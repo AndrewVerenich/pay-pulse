@@ -4,12 +4,11 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 
-CH_HOST = "${CLICKHOUSE_HOST:-clickhouse}"
-CH_PORT = "${CLICKHOUSE_PORT:-8123}"
-
+# Avoid nested quotes in bash: throwIf(x) without custom message.
 FRESHNESS_SQL = (
-    "SELECT throwIf(max(toDate(occurred_at)) < today() - 1, 'payment_events_raw is stale') "
-    "FROM paypulse_analytics.payment_events_raw FORMAT Null"
+    "SELECT throwIf("
+    "count() = 0 OR max(toDate(occurred_at)) < today() - 1"
+    ") FROM paypulse_analytics.payment_events_raw FORMAT Null"
 )
 
 with DAG(
@@ -24,6 +23,7 @@ with DAG(
     BashOperator(
         task_id="check_payment_events_freshness",
         bash_command=(
-            f'curl -sf "http://{CH_HOST}:{CH_PORT}/" --data-binary \'{FRESHNESS_SQL}\''
+            'curl -sf "http://${CLICKHOUSE_HOST:-clickhouse}:${CLICKHOUSE_PORT:-8123}/" '
+            f"--data-binary \"{FRESHNESS_SQL}\""
         ),
     )

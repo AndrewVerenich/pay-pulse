@@ -8,9 +8,11 @@ DBT_DIR = "/opt/dbt"
 DBT_ENV = (
     "export CLICKHOUSE_HOST=${CLICKHOUSE_HOST:-clickhouse} "
     "CLICKHOUSE_PORT=${CLICKHOUSE_PORT:-8123} "
-    "DBT_PROFILES_DIR=/opt/dbt"
+    "DBT_PROFILES_DIR=/opt/dbt "
+    "DBT_TARGET_PATH=/tmp/dbt-target "
+    "DBT_LOG_PATH=/tmp/dbt-logs"
 )
-DBT_FLAGS = "--profiles-dir /opt/dbt --project-dir /opt/dbt --target-path /tmp/dbt-target --log-path /tmp/dbt-logs"
+DBT_FLAGS = "--profiles-dir /opt/dbt --project-dir /opt/dbt --log-path /tmp/dbt-logs"
 
 with DAG(
     dag_id="paypulse_dbt_test_dag",
@@ -23,5 +25,11 @@ with DAG(
 ) as dag:
     BashOperator(
         task_id="dbt_test",
-        bash_command=f"{DBT_ENV} && mkdir -p /tmp/dbt-target /tmp/dbt-logs && cd {DBT_DIR} && dbt test {DBT_FLAGS}",
+        bash_command=(
+            f"{DBT_ENV} && mkdir -p /tmp/dbt-target /tmp/dbt-logs && cd {DBT_DIR} && "
+            "if [ ! -d dbt_packages/dbt_utils ]; then "
+            "echo 'ERROR: dbt_packages/dbt_utils missing — run paypulse_dbt_dag first' >&2; exit 1; "
+            "fi && "
+            f"dbt test {DBT_FLAGS}"
+        ),
     )
