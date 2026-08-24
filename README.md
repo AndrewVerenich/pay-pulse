@@ -23,11 +23,12 @@
 17. [🎬 Демо](#-демо)
 18. [📦 Структура проекта](#-структура-проекта)
 19. [🛡️ Гарантии и Fault Tolerance](#️-гарантии-и-fault-tolerance)
-20. [🔍 Технические детали](#-технические-детали)
-21. [📸 Скриншоты](#-скриншоты)
-22. [✅ Чеклист реализованного](#-чеклист-реализованного)
-23. [🎤 Talking points для интервью](#-talking-points-для-интервью)
-24. [ADR index](#adr-index)
+20. [💥 Chaos cookbook](docs/chaos.md)
+21. [🔍 Технические детали](#-технические-детали)
+22. [📸 Скриншоты](#-скриншоты)
+23. [✅ Чеклист реализованного](#-чеклист-реализованного)
+24. [🎤 Talking points для интервью](#-talking-points-для-интервью)
+25. [ADR index](#adr-index)
 
 ---
 
@@ -491,7 +492,7 @@ pay-pulse/
 └── docs/
     ├── ADR/                      # 0001–0008
     ├── demo/                     # .http
-    ├── chaos.md
+    ├── chaos.md                  # kill-сценарии → docs/chaos.md
     └── screenshots/
 ```
 
@@ -512,6 +513,8 @@ pay-pulse/
 | Flink TM kill | Checkpoint restore ([chaos §4](docs/chaos.md)) |
 | Logout mid-TTL | Redis blacklist `jti` |
 | Load spike | Gatling assertions + Grafana lag |
+
+Пять kill-сценариев (Kafka, Postgres, Flink TM, ClickHouse, outbox/Debezium) с симптомами в Grafana/Ops и шагами восстановления: **[docs/chaos.md](docs/chaos.md)**.
 
 ---
 
