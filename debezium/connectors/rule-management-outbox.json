@@ -1,5 +1,5 @@
 {
-  "name": "paypulse-event-store",
+  "name": "paypulse-rule-management-outbox",
   "config": {
     "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
     "tasks.max": "1",
@@ -8,12 +8,12 @@
     "database.user": "postgres",
     "database.password": "postgres",
     "database.dbname": "paypulse",
-    "topic.prefix": "cdc.paypulse",
+    "topic.prefix": "cdc.paypulse.rule.outbox",
     "plugin.name": "pgoutput",
-    "slot.name": "paypulse_event_store",
-    "publication.name": "paypulse_event_store_pub",
+    "slot.name": "paypulse_rule_outbox",
+    "publication.name": "paypulse_rule_outbox_pub",
     "publication.autocreate.mode": "filtered",
-    "table.include.list": "payment_command.event_store",
+    "table.include.list": "rule_management.outbox",
     "heartbeat.interval.ms": "10000",
     "tombstones.on.delete": "false",
     "key.converter": "org.apache.kafka.connect.json.JsonConverter",
@@ -23,13 +23,13 @@
     "transforms": "outbox",
     "transforms.outbox.type": "io.debezium.transforms.outbox.EventRouter",
     "transforms.outbox.table.field.event.id": "id",
-    "transforms.outbox.table.field.event.key": "account_id",
-    "transforms.outbox.table.field.event.type": "event_type",
+    "transforms.outbox.table.field.event.key": "partitioning_key",
+    "transforms.outbox.table.field.event.type": "type",
     "transforms.outbox.table.field.event.payload": "payload",
-    "transforms.outbox.table.fields.additional.placements": "event_type:header:eventType,version:header:eventVersion,aggregate_id:header:aggregateId",
     "transforms.outbox.table.expand.json.payload": "true",
-    "transforms.outbox.route.by.field": "event_type",
-    "transforms.outbox.route.topic.replacement": "payment.events",
+    "transforms.outbox.route.by.field": "type",
+    "transforms.outbox.route.topic.regex": "FraudRuleUpdated",
+    "transforms.outbox.route.topic.replacement": "fraud_rules",
     "transforms.outbox.route.tombstone.on.empty.payload": "false"
   }
 }
