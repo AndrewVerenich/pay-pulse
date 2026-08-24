@@ -113,7 +113,7 @@ dbt deps && dbt debug && dbt run && dbt test
 | Сервис | URL | Credentials | Описание |
 |--------|-----|-------------|----------|
 | **Airflow** | http://localhost:18087 | admin / admin | DAG dbt + DQ |
-| **Superset** | http://localhost:18089 | admin / admin | BI по marts |
+| **Superset** | http://localhost:18089/superset/dashboard/paypulse-analytics/ | admin / admin | дашборд по 6 marts |
 | **ClickHouse HTTP** | http://localhost:8124 | default / (пусто) | raw + dbt-модели |
 | **Kafka UI** | http://localhost:18088 | — | топики-источники |
 
@@ -142,9 +142,9 @@ pay-pulse/
 │   │       └── marts/                     # 6 витрин
 │   └── superset/
 │       ├── Dockerfile
-│       └── init/bootstrap.sh
+│       └── init/bootstrap.sh + provision_dashboard.py
 ├── airflow/
-│   ├── Dockerfile                     # airflow + dbt-clickhouse
+│   ├── Dockerfile                     # airflow + dbt-clickhouse + git
 │   └── dags/
 │       ├── paypulse_dbt_dag.py
 │       ├── paypulse_dbt_test_dag.py
@@ -330,22 +330,24 @@ paypulse_data_quality_dag: freshness payment_events_raw    (ежедневно 0
 | `paypulse_dbt_test_dag` | `30 */6 * * *` | `dbt test` |
 | `paypulse_data_quality_dag` | `0 7 * * *` | freshness SQL в ClickHouse |
 
-Код: [`airflow/dags/paypulse_dbt_dag.py`](../airflow/dags/paypulse_dbt_dag.py). Target/logs в `/tmp/dbt-*` (не root-owned volume).
+Код: [`airflow/dags/paypulse_dbt_dag.py`](../airflow/dags/paypulse_dbt_dag.py). `catchup=False`. Target/logs в `/tmp/dbt-*`. Образ ставит `git` для `dbt deps`; если есть `analytics/dbt/dbt_packages/dbt_utils`, deps пропускается. У `dbt-clickhouse` 1.8 нет `--target-path` — только `DBT_TARGET_PATH`. Freshness DAG: `throwIf` без вложенных кавычек (иначе `curl` падает).
 
 ---
 
 ## 📊 Superset
 
-Bootstrap [`superset/init/bootstrap.sh`](superset/init/bootstrap.sh) создаёт admin и datasource **PayPulse ClickHouse**. После `dbt run` чарты строятся в UI: http://localhost:18089 (`admin`/`admin`).
+Bootstrap [`superset/init/bootstrap.sh`](superset/init/bootstrap.sh) создаёт admin, datasource **PayPulse ClickHouse** и дашборд **PayPulse Analytics** (6 чартов по витринам). Открыть: http://localhost:18089/superset/dashboard/paypulse-analytics/ (`admin`/`admin`).
+
+Повторно накатить дашборд после `dbt run`: `docker exec paypulse-superset python /app/init/provision_dashboard.py`. Daily Revenue/Risk — bar (один день демо-данных; line с одной точкой выглядит пустым).
 
 | Дашборд / чарт | Dataset | Тип | Что смотреть |
 |----------------|---------|-----|----------------|
-| Daily Risk | `mart_daily_risk_report` | Line | `report_date` × `alert_count` |
+| Daily Risk | `mart_daily_risk_report` | Bar | `report_date` × `alert_count` |
 | AML Structuring | `mart_aml_structuring_patterns` | Table | top `account_id` по `daily_total` |
 | Customer RFM | `mart_customer_risk_rfm` | Bar | counts по `risk_segment` |
 | Settlement Latency | `mart_settlement_latency` | Histogram | `latency_seconds` |
 | Merchant Risk | `mart_merchant_risk_profile` | Bar | мерчанты × `alert_count` |
-| Daily Revenue | `mart_daily_revenue` | Line | `revenue_date` × `total_revenue` по `currency` |
+| Daily Revenue | `mart_daily_revenue` | Bar | `revenue_date` × `total_revenue` |
 
 > На snap-docker publish порта иногда висит при healthy-контейнере. Обход: сеть Docker (`http://superset:8088`) или `docker exec`.
 
@@ -381,5 +383,5 @@ dbt docs generate && dbt docs serve
 - [x] 6 бизнес-витрин (revenue / risk / AML / RFM / merchant / latency)
 - [x] Custom tests + relationships на FK фактов
 - [x] Airflow: послойный `dbt run` + `dbt test` + freshness
-- [x] Superset overlay на ClickHouse
+- [x] Superset: ClickHouse + дашборд **PayPulse Analytics**
 - [x] Compose overlay отдельно от stream/observability

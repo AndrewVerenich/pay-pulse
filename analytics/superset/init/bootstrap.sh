@@ -12,4 +12,5 @@ superset fab create-admin \
 superset init
 
 python3 /app/init/register_clickhouse.py
+python3 /app/init/provision_dashboard.py || echo "WARN: dashboard provision skipped (dbt marts missing?)"
 echo "Superset bootstrap complete."

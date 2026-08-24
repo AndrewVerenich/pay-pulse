@@ -96,6 +96,7 @@ services:
       SUPERSET_SECRET_KEY: "paypulse-superset-dev-secret-key"
       SUPERSET_LOAD_EXAMPLES: "no"
     volumes:
+      - ./analytics/superset/init:/app/init:ro
       - superset_home:/app/superset_home
     depends_on:
       superset-init:

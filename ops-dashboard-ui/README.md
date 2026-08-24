@@ -41,14 +41,14 @@ npm run dev
 
 ```bash
 docker compose up -d ops-dashboard-ui
-# http://localhost:3000  admin/admin
+# http://localhost:3000  admin/admin (zod min 5 — демо-пароль короче 6)
 ```
 
 ## Страницы
 
 | Route | Данные | Заметки |
 |-------|--------|---------|
-| `/login` | JWT | refresh rotation |
+| `/login` | JWT | `admin`/`admin` (min 5 символов) |
 | `/live` | SSE payments/sagas | EventSource |
 | `/payments/:id` | aggregator + timeline | StepTimeline |
 | `/alerts` | SSE fraud_alerts | filters + charts |

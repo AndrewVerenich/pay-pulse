@@ -81,14 +81,16 @@ docker run --rm -v "$PWD/prometheus/rules:/rules" prom/prometheus:v2.51.2 \
 
 ## Grafana dashboards (folder **PayPulse**)
 
-| JSON | Focus |
-|------|-------|
-| `paypulse-business-overview.json` | TPS, fraud, saga p95 |
-| `paypulse-jvm-http.json` | JVM / HTTP |
-| `paypulse-kafka-health.json` | lag / broker |
-| `paypulse-flink-job.json` | checkpoints / throughput |
-| `paypulse-pg-ch.json` | PG (+ CH when available) |
-| `paypulse-saga-state.json` | saga outcomes |
+Provisioned JSON: `grafana/provisioning/dashboards/json/`. У каждой timeseries панели есть `legendFormat` (короткое имя серии) и единицы.
+
+| JSON | Focus | Легенда |
+|------|-------|---------|
+| `paypulse-business-overview.json` | TPS, fraud, saga p95 | `{{result}}` / `{{severity}}` / p95 |
+| `paypulse-jvm-http.json` | heap / HTTP RPS | `{{service}}` |
+| `paypulse-kafka-health.json` | consumer lag, DLT | `{{consumergroup}}` / `{{topic}}` |
+| `paypulse-flink-job.json` | `numberOfFailedCheckpoints`, duration, running jobs | `{{job_name}}` |
+| `paypulse-pg-ch.json` | PG connections/size (без `template*`), outbox lag, CH Kafka lag | `{{datname}}` / `{{service}}` |
+| `paypulse-saga-state.json` | active sagas / outcomes | `{{saga_type}}` / `{{outcome}}` |
 
 ## Self-check
 

@@ -11,7 +11,7 @@ Capture these after the full demo stack is running (UI, Grafana, Flink, Superset
 | `react-payment-timeline.png` | http://localhost:3000/payments/{id} | Saga step timeline for a payment |
 | `grafana-business-overview.png` | http://localhost:3001 | Dashboard **PayPulse Business Overview** |
 | `flink-job-graph.png` | http://localhost:8081 | Flink job graph / overview |
-| `superset-daily-risk.png` | http://localhost:18089 | Superset chart from `mart_daily_risk_report` |
+| `superset-daily-risk.png` | http://localhost:18089/superset/dashboard/paypulse-analytics/ | Dashboard **PayPulse Analytics** |
 
 ## Capture checklist
 

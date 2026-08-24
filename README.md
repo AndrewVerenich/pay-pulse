@@ -177,7 +177,7 @@ flowchart TB
 | OLAP | ClickHouse 23.x | Analytics raw + marts |
 | Transform | dbt-clickhouse | Staging → intermediate → marts |
 | Orchestration | Airflow 2.8 | `dbt run/test`, data quality |
-| BI | Apache Superset 3.1 | Daily risk / revenue dashboards |
+| BI | Apache Superset 3.1 | Дашборд [PayPulse Analytics](http://localhost:18089/superset/dashboard/paypulse-analytics/) |
 | Ops UI | React 18, Vite, TS, Tailwind, TanStack Query | Live operations |
 | Auth store | Redis 7 | JWT blacklist |
 | Metrics | Micrometer → Prometheus → Grafana 10 | SLI / dashboards / alerts |
@@ -325,7 +325,7 @@ CREATE TABLE payment_command.event_store (
 
 Scrape, `paypulse_*` метрики, 6 Grafana dashboards, 5 alert rules: [observability/README.md](observability/README.md). ADR: [0008](docs/ADR/0008-no-distributed-tracing-mvp.md) — metrics first, без Tempo/Jaeger в MVP.
 
-Grafana: http://localhost:3001 · Prometheus: http://localhost:9090.
+Grafana: http://localhost:3001 (`admin`/`admin`) · Prometheus: http://localhost:9090. Легенды панелей — имена сервисов/групп (`{{service}}`, `{{consumergroup}}`, `{{datname}}`), не сырой PromQL.
 
 ---
 
@@ -333,7 +333,7 @@ Grafana: http://localhost:3001 · Prometheus: http://localhost:9090.
 
 Контур `Kafka → ClickHouse → dbt (звезда) → Airflow → Superset`: [analytics/README.md](analytics/README.md). ADR: [0006](docs/ADR/0006-analytics-split-superset-vs-react.md).
 
-Airflow **:18087** · Superset **:18089** (`admin`/`admin`).
+Airflow **:18087** · Superset **:18089** (`admin`/`admin`). Дашборд: http://localhost:18089/superset/dashboard/paypulse-analytics/.
 
 ---
 
@@ -393,7 +393,7 @@ curl -s http://localhost:8090/auth/login \
 | Flink UI | http://localhost:8081 | stream overlay |
 | Grafana | http://localhost:3001 | admin / admin |
 | Prometheus | http://localhost:9090 | — |
-| Superset | http://localhost:18089 | admin / admin |
+| Superset | http://localhost:18089/superset/dashboard/paypulse-analytics/ | admin / admin |
 | Airflow | http://localhost:18087 | admin / admin |
 | ClickHouse HTTP | http://localhost:8124 | default / |
 | Postgres | localhost:55432 | postgres / postgres |
@@ -432,7 +432,7 @@ curl -s -X POST localhost:8090/api/generator/scenarios/velocity \
 # → /alerts + topic fraud_alerts
 ```
 
-Сценарии: `structuring`, `geo-anomaly`, `normal-load`, `mixed`.
+Сценарии: `structuring`, `geo-anomaly`, `normal-load`, `mixed`. В compose генератор крутит их по кругу (`PAYPULSE_GENERATOR_CONTINUOUS_DEMO=true`, JWT refresh каждые 10 мин).
 
 ### 3. Hot-reload rule
 
@@ -572,11 +572,11 @@ pay-pulse/
 - [x] React Ops (6 страниц) + health summary
 - [x] ClickHouse Kafka ingest + MV
 - [x] dbt staging/int/6 marts + custom tests
-- [x] Airflow dbt + DQ DAGs
-- [x] Superset ClickHouse datasource + chart smoke
+- [x] Airflow dbt + DQ DAGs (`catchup=False`, `git` в образе, `dbt_packages` или `dbt deps`)
+- [x] Superset dashboard **PayPulse Analytics** (6 чартов)
 - [x] Prometheus scrape + 10 business metrics
 - [x] 6 Grafana dashboards + 5 alert rules
-- [x] Payment-generator REST scenarios (5)
+- [x] Payment-generator REST scenarios (5) + continuous demo rotator
 - [x] Gatling load-test + `run.sh`
 - [x] Chaos cookbook (5 kills)
 - [x] Demo `.http` (5 историй)
