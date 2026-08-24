@@ -1,0 +1,47 @@
+groups:
+  - name: paypulse
+    rules:
+      - alert: HighFraudRate
+        expr: sum(rate(paypulse_fraud_alerts_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Fraud alert rate is elevated
+          description: More than 0.05 fraud alerts per second over the last 5 minutes.
+
+      - alert: SagaCompensationBurst
+        expr: sum(rate(saga_completed_total{outcome="compensated"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Saga compensation burst detected
+          description: Compensated saga rate exceeded 0.1/s.
+
+      - alert: KafkaConsumerLag
+        expr: kafka_consumergroup_lag > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Kafka consumer lag is high
+          description: Consumer group lag exceeded 1000 messages for 10 minutes.
+
+      - alert: FlinkCheckpointFailure
+        expr: increase(flink_jobmanager_job_numFailedCheckpoints[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Flink checkpoint failures detected
+          description: At least one Flink checkpoint failed in the last 15 minutes.
+
+      - alert: OutboxLagHigh
+        expr: max(paypulse_outbox_lag_seconds) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Outbox publish lag is high
+          description: Outbox lag exceeded 30 seconds for 5 minutes.

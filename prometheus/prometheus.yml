@@ -1,0 +1,89 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: auth-gateway
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["auth-gateway:8090"]
+
+  - job_name: payment-command
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["payment-command-service:8086"]
+
+  - job_name: account-query
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["account-query-service:8082"]
+
+  - job_name: projection-balance
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["projection-balance:8088"]
+
+  - job_name: saga-orchestrator
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["payment-saga-orchestrator:8083"]
+
+  - job_name: bff-ops
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["bff-ops:8084"]
+
+  - job_name: rule-management
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["rule-management-service:8085"]
+
+  - job_name: kstreams-saga-agg
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["kstreams-saga-events-agg:8096"]
+
+  - job_name: participant-fraud
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["participant-fraud-check:8091"]
+
+  - job_name: participant-risk
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["participant-risk-scoring:8092"]
+
+  - job_name: participant-ledger
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["participant-ledger-apply:8093"]
+
+  - job_name: participant-notification
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["participant-notification:8094"]
+
+  - job_name: flink
+    # Optional: requires compose.stream.yml (flink-jobmanager). DOWN when Flink is stopped is OK.
+    static_configs:
+      - targets: ["flink-jobmanager:9249"]
+
+  - job_name: kafka-exporter
+    static_configs:
+      - targets: ["kafka-exporter:9308"]
+
+  - job_name: postgres-exporter
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+
+  # cadvisor: enable with --profile cadvisor (needs host docker socket mounts; fails on snap-docker)
+  # - job_name: cadvisor
+  #   static_configs:
+  #     - targets: ["cadvisor:8080"]
