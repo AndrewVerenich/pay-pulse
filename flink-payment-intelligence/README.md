@@ -284,6 +284,12 @@ docker compose -f docker-compose.yml -f compose.stream.yml -f compose.observabil
 | **Ops `/alerts`** | http://localhost:3000/alerts | admin / admin | SSE `fraud_alerts` |
 | **Grafana** | http://localhost:3001 | admin / admin | dashboard Flink job (observability overlay) |
 
+## Скриншоты
+
+![flink](../docs/screenshots/flink.png)
+
+![redpanda](../docs/screenshots/redpanda.png)
+
 ---
 
 ## Структура проекта

@@ -25,10 +25,9 @@
 19. [🛡️ Гарантии и Fault Tolerance](#️-гарантии-и-fault-tolerance)
 20. [💥 Chaos cookbook](docs/chaos.md)
 21. [🔍 Технические детали](#-технические-детали)
-22. [📸 Скриншоты](#-скриншоты)
-23. [✅ Чеклист реализованного](#-чеклист-реализованного)
-24. [🎤 Talking points для интервью](#-talking-points-для-интервью)
-25. [ADR index](#adr-index)
+22. [✅ Чеклист реализованного](#-чеклист-реализованного)
+23. [🎤 Talking points для интервью](#-talking-points-для-интервью)
+24. [ADR index](#adr-index)
 
 ---
 
@@ -493,7 +492,7 @@ pay-pulse/
     ├── ADR/                      # 0001–0008
     ├── demo/                     # .http
     ├── chaos.md                  # kill-сценарии → docs/chaos.md
-    └── screenshots/
+    └── screenshots/              # PNG для sub-README
 ```
 
 ---
@@ -549,12 +548,6 @@ pay-pulse/
 ```
 
 **Saga statuses** — `STARTED` → `EXECUTING` → `COMPLETED` | `COMPENSATING` → `COMPENSATED` | `FAILED`. См. [payment-saga-orchestrator/README.md](payment-saga-orchestrator/README.md).
-
----
-
-## 📸 Скриншоты
-
-Имена файлов, URL и чеклист съёмки: [`docs/screenshots/README.md`](docs/screenshots/README.md). PNG опциональны в git.
 
 ---
 

@@ -183,4 +183,10 @@ JVM в `build.gradle.kts`: `-Xmx2G` и `--add-opens` (Gatling + JDK 21).
 После прогона: `load-test/reports/<timestamp>/index.html` — OK, latency percentiles,
 достигнутый RPS. Assertion >95% success отражается в статусе Gradle.
 
-Опубликованный отчёт: _(ссылка)_
+### Скриншоты
+
+![gatling_1](../docs/screenshots/gatling_1.png)
+
+![gatling_2](../docs/screenshots/gatling_2.png)
+
+![gatling_3](../docs/screenshots/gatling_3.png)

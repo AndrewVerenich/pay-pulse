@@ -332,6 +332,16 @@ paypulse_data_quality_dag: freshness payment_events_raw    (ежедневно 0
 
 Код: [`airflow/dags/paypulse_dbt_dag.py`](../airflow/dags/paypulse_dbt_dag.py). `catchup=False`. Target/logs в `/tmp/dbt-*`. Образ ставит `git` для `dbt deps`; если есть `analytics/dbt/dbt_packages/dbt_utils`, deps пропускается. У `dbt-clickhouse` 1.8 нет `--target-path` — только `DBT_TARGET_PATH`. Freshness DAG: `throwIf` без вложенных кавычек (иначе `curl` падает).
 
+### Скриншоты Airflow
+
+![airflow_1](../docs/screenshots/airflow_1.png)
+
+![airflow_2](../docs/screenshots/airflow_2.png)
+
+![airflow_3](../docs/screenshots/airflow_3.png)
+
+![airflow_4](../docs/screenshots/airflow_4.png)
+
 ---
 
 ## 📊 Superset
@@ -350,6 +360,12 @@ Bootstrap [`superset/init/bootstrap.sh`](superset/init/bootstrap.sh) созда�
 | Daily Revenue | `mart_daily_revenue` | Bar | `revenue_date` × `total_revenue` |
 
 > На snap-docker publish порта иногда висит при healthy-контейнере. Обход: сеть Docker (`http://superset:8088`) или `docker exec`.
+
+### Скриншоты Superset
+
+![superset_1](../docs/screenshots/superset_1.png)
+
+![superset_2](../docs/screenshots/superset_2.png)
 
 ---
 

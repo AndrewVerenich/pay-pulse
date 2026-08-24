@@ -56,6 +56,18 @@ docker compose up -d ops-dashboard-ui
 | `/sagas/stuck` | poll + admin actions | retry / force-complete |
 | `/health` | `GET /api/health/summary` | probes |
 
+## Скриншоты
+
+![ops_1](../docs/screenshots/ops_1.png)
+
+![ops_2](../docs/screenshots/ops_2.png)
+
+![ops_3](../docs/screenshots/ops_3.png)
+
+![ops_4](../docs/screenshots/ops_4.png)
+
+![ops_5](../docs/screenshots/ops_5.png)
+
 ## Тесты
 
 ```bash

@@ -92,6 +92,24 @@ Provisioned JSON: `grafana/provisioning/dashboards/json/`. У каждой times
 | `paypulse-pg-ch.json` | PG connections/size (без `template*`), outbox lag, CH Kafka lag | `{{datname}}` / `{{service}}` |
 | `paypulse-saga-state.json` | active sagas / outcomes | `{{saga_type}}` / `{{outcome}}` |
 
+## Скриншоты
+
+![grafana_1](../docs/screenshots/grafana_1.png)
+
+![grafana_2](../docs/screenshots/grafana_2.png)
+
+![grafana_3](../docs/screenshots/grafana_3.png)
+
+![grafana_4](../docs/screenshots/grafana_4.png)
+
+![grafana_5](../docs/screenshots/grafana_5.png)
+
+![grafana_6](../docs/screenshots/grafana_6.png)
+
+![grafana_7](../docs/screenshots/grafana_7.png)
+
+![prometheus](../docs/screenshots/prometheus.png)
+
 ## Self-check
 
 ```bash
