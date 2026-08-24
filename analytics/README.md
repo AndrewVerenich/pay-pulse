@@ -142,8 +142,7 @@ pay-pulse/
 │   │       └── marts/                     # 6 витрин
 │   └── superset/
 │       ├── Dockerfile
-│       ├── init/bootstrap.sh
-│       └── dashboards/README.md
+│       └── init/bootstrap.sh
 ├── airflow/
 │   ├── Dockerfile                     # airflow + dbt-clickhouse
 │   └── dags/
@@ -337,7 +336,7 @@ paypulse_data_quality_dag: freshness payment_events_raw    (ежедневно 0
 
 ## 📊 Superset
 
-Bootstrap [`superset/init/bootstrap.sh`](superset/init/bootstrap.sh) создаёт admin и datasource ClickHouse. Чарты — в UI против витрин после `dbt run`.
+Bootstrap [`superset/init/bootstrap.sh`](superset/init/bootstrap.sh) создаёт admin и datasource **PayPulse ClickHouse**. После `dbt run` чарты строятся в UI: http://localhost:18089 (`admin`/`admin`).
 
 | Дашборд / чарт | Dataset | Тип | Что смотреть |
 |----------------|---------|-----|----------------|
@@ -348,7 +347,7 @@ Bootstrap [`superset/init/bootstrap.sh`](superset/init/bootstrap.sh) созда�
 | Merchant Risk | `mart_merchant_risk_profile` | Bar | мерчанты × `alert_count` |
 | Daily Revenue | `mart_daily_revenue` | Line | `revenue_date` × `total_revenue` по `currency` |
 
-Подробности провижининга: [`superset/dashboards/README.md`](superset/dashboards/README.md).
+> На snap-docker publish порта иногда висит при healthy-контейнере. Обход: сеть Docker (`http://superset:8088`) или `docker exec`.
 
 ---
 
