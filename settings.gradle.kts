@@ -4,6 +4,7 @@ pluginManagement {
     kotlin("plugin.spring") version "1.9.25"
     id("org.springframework.boot") version "3.3.5"
     id("io.spring.dependency-management") version "1.1.6"
+    id("io.gatling.gradle") version "3.13.5"
   }
 }
 
@@ -26,4 +27,10 @@ include(
   ":participant-risk-scoring",
   ":participant-ledger-apply",
   ":participant-notification",
+  ":bff-ops",
+  ":flink-payment-intelligence",
+  ":rule-management-service",
+  ":kstreams-saga-events-agg",
+  ":ops-ui-server",
+  ":load-test",
 )
