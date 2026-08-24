@@ -2,7 +2,7 @@
 
 Оркестратор **PaymentSaga**: проводит платёж через fraud → risk → ledger → notify, хранит состояние в Postgres и умеет компенсировать шаги до точки невозврата.
 
-> ADR: [0002 Orchestrated saga vs choreography](../docs/ADR/0002-saga-orchestration-vs-choreography.md) · Этап: [S2](../docs/stages/S2.md) · Движок: `shared/saga-orchestrator-engine`
+> ADR: [0002 Orchestrated saga vs choreography](../docs/ADR/0002-saga-orchestration-vs-choreography.md) · Движок: `shared/saga-orchestrator-engine`
 
 Модуль тонкий: регистрирует Kotlin DSL-определение саги. State machine, Kafka command/reply, timeout scheduler, admin REST и метрики живут в engine.
 

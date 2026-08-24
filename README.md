@@ -6,8 +6,6 @@
 
 | Документ | Зачем |
 |----------|--------|
-| [Этапы S0–S10](docs/stages/README.md) | Исполнимая карта реализации |
-| [Platform plan](docs/pay-pulse-platform-plan.md) | Источник истины по продукту |
 | [ADR index](#adr-index) | Архитектурные решения |
 | [Chaos cookbook](docs/chaos.md) | 5 kill-сценариев |
 | [Demo `.http`](docs/demo/) | Интервью-сценарии |
@@ -507,7 +505,6 @@ pay-pulse/
 └── docs/
     ├── ADR/                      # 0001–0008
     ├── architecture/             # flink-graph, …
-    ├── stages/                   # S2–S10 checklists
     ├── demo/                     # .http
     ├── chaos.md
     └── screenshots/
@@ -600,7 +597,6 @@ pay-pulse/
 - [x] Demo `.http` (5 историй)
 - [x] ADR 0001–0008
 - [x] Sub-READMEs ключевых модулей
-- [x] Stages S2–S9 acceptance closed; S10 docs
 
 ---
 
@@ -634,6 +630,4 @@ pay-pulse/
 | [0007](docs/ADR/0007-jwt-hs256-and-redis-blacklist.md) | HS256 + Redis blacklist |
 | [0008](docs/ADR/0008-no-distributed-tracing-mvp.md) | Metrics-first, no tracing MVP |
 
-Архитектурный индекс: [docs/architecture/README.md](docs/architecture/README.md).  
-План: [docs/pay-pulse-platform-plan.md](docs/pay-pulse-platform-plan.md).  
-Этапы: [docs/stages/README.md](docs/stages/README.md).
+Архитектурный индекс: [docs/architecture/README.md](docs/architecture/README.md).

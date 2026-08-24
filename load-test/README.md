@@ -85,7 +85,7 @@ lock-конфликтов на одном `accountId`. 409 **не** отделя
 - `5xx` / обрыв соединения — gateway, command, Postgres;
 - request timeout Gatling.
 
-Целевой RPS плана — **1000 × 5 мин** (CI). На ноутбуке — 50–100. Симуляция **не** проверяет,
+Целевой RPS для CI — **1000 × 5 мин**. На ноутбуке — 50–100. Симуляция **не** проверяет,
 что фактический RPS равен `GATLING_TARGET_RPS`: смотри графики в HTML-отчёте
 (если latency растёт, in-flight копится, достигнутый RPS падает).
 
@@ -146,7 +146,7 @@ chmod +x load-test/run.sh
 # laptop
 GATLING_TARGET_RPS=100 GATLING_DURATION_MINUTES=5 ./load-test/run.sh
 
-# план / CI
+# CI
 GATLING_TARGET_RPS=1000 GATLING_DURATION_MINUTES=5 ./load-test/run.sh
 ```
 

@@ -51,9 +51,9 @@ flowchart LR
 ```mermaid
 flowchart TB
   subgraph sources [Kafka Sources]
-    S1[payment.events]
-    S2[fraud_rules compact]
-    S3[user_risk_profiles compact]
+    SRC_EVENTS[payment.events]
+    SRC_RULES[fraud_rules compact]
+    SRC_PROFILES[user_risk_profiles compact]
   end
 
   subgraph flink [Flink Job: PaymentIntelligenceJob]
@@ -75,14 +75,14 @@ flowchart TB
     T_MET[payment_metrics_hourly]
   end
 
-  S1 --> PARSE
+  SRC_EVENTS --> PARSE
   PARSE --> ENRICH
   PARSE -.-> DEAD
   DEAD --> T_DEAD
 
-  S3 --> ENRICH
+  SRC_PROFILES --> ENRICH
   ENRICH --> DETECT
-  S2 --> DETECT
+  SRC_RULES --> DETECT
 
   DETECT --> T_ALERT
   DETECT -.-> SCORE
@@ -282,7 +282,7 @@ docker compose -f docker-compose.yml -f compose.stream.yml -f compose.observabil
 | Сервис | URL | Credentials | Описание |
 |--------|-----|-------------|----------|
 | **Flink Dashboard** | http://localhost:8081 | — | Граф job, checkpoints, backpressure |
-| **Flink Prometheus** | http://localhost:9249 | — | JM metrics (scrape S8) |
+| **Flink Prometheus** | http://localhost:9249 | — | JM metrics endpoint |
 | **Kafka UI** | http://localhost:18088 | — | топики alerts / rules / DLT |
 | **Ops `/alerts`** | http://localhost:3000/alerts | admin / admin | SSE `fraud_alerts` |
 | **Grafana** | http://localhost:3001 | admin / admin | dashboard Flink job (observability overlay) |
@@ -377,6 +377,6 @@ Env (defaults в скобках): `PAYPULSE_KAFKA_BOOTSTRAP` (`kafka:9092`),
 - [x] Tumbling event-time 1h + `WatermarkStrategy.forBoundedOutOfOrderness` + idleness
 - [x] Checkpointing (hashmap, 60s, RETAIN_ON_CANCELLATION, shared volume)
 - [x] Стабильные `uid` / `name` на sources, operators, sinks
-- [x] Hot-reload правил через compact topic (S5)
+- [x] Hot-reload правил через compact topic
 - [x] MiniCluster-тест графа + unit-тесты scorers
 - [x] Overlay `compose.stream.yml` отдельно от analytics
