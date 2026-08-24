@@ -1,44 +1,44 @@
-# ADR 0005 — Apache Flink vs Spark Structured Streaming for fraud detection
+# ADR 0005 — Apache Flink vs Spark Structured Streaming для fraud detection
 
-- Status: Accepted
-- Date: 2026-06-18
-- Context owner: flink-payment-intelligence / streaming team
-- Related ADRs: [0006](0006-analytics-split-superset-vs-react.md)
+- Статус: Принят
+- Дата: 2026-06-18
+- Владелец контекста: flink-payment-intelligence / streaming
+- Связанные ADR: [0006](0006-analytics-split-superset-vs-react.md)
 
-## Context
+## Контекст
 
 Real-time fraud / AML на PayPulse требует:
 
-- **Sub-minute** (лучше seconds-level) latency на keyed state: velocity windows, geo anomaly.
-- **Broadcast state** для динамических правил из compact topic `fraud_rules` без рестарта job.
-- **Broadcast** baseline `user_risk_profiles`.
-- Event-time окна для hourly metrics (`payment_metrics_hourly`).
+- **Sub-minute** (лучше seconds-level) latency на keyed state: velocity windows, geo anomaly;
+- **Broadcast state** для динамических правил из compact-топика `fraud_rules` без рестарта job;
+- **Broadcast** baseline `user_risk_profiles`;
+- Event-time окна для hourly metrics (`payment_metrics_hourly`);
 - Side outputs: `fraud_alerts`, `user_fraud_scores`, `dead_letter`.
 
 Spark Structured Streaming (micro-batch) умеет streaming joins и watermarking, но:
 
-- broadcast / map-side rule refresh менее идиоматичен, чем Flink `BroadcastProcessFunction`;
-- checkpoint / exactly-once семантика и low-latency keyed timers — сильнее сторона Flink;
-- reference portfolio уже на Flink (`data-pipelines/clickstream-analytics-pipeline`).
+- broadcast / map-side refresh правил менее идиоматичен, чем Flink `BroadcastProcessFunction`;
+- checkpoint / exactly-once и low-latency keyed timers — сильнее сторона Flink;
+- референс-портфолио уже на Flink (`data-pipelines/clickstream-analytics-pipeline`).
 
 Batch Spark / nightly jobs остаются в зоне dbt/Airflow на ClickHouse ([ADR 0006](0006-analytics-split-superset-vs-react.md)), не на path алертов.
 
-## Decision
+## Решение
 
-Используем **Apache Flink** (job module `flink-payment-intelligence`, Kotlin, **JVM 11** bytecode target) как единственный stream processor fraud path:
+Используем **Apache Flink** (модуль `flink-payment-intelligence`, Kotlin, **JVM 11**) как единственный stream processor fraud path:
 
 - Entry: `PaymentIntelligenceJob` — sources `payment.events`, `fraud_rules`, `user_risk_profiles`.
 - `EventParser` + dead-letter side output (`DeadLetterTag`) вместо fail-job на bad JSON.
 - `UserRiskEnricher` — broadcast connect profiles.
 - Keyed by `accountId` → `FraudDetectionFunction` + broadcast rules; helpers `VelocityChecker`, `GeoAnomalyDetector`, AML `StructuringDetector`, `FraudScorer`.
-- Sinks: `fraud_alerts`, compact `user_fraud_scores`, `payment_metrics_hourly`, `dead_letter` (`KafkaSinks` / env via `FlinkJobProperties`).
-- Ops: checkpointing + Flink `PrometheusReporter` (порт `:9249`), dashboards в Grafana; chaos notes в `docs/chaos.md`.
+- Sinks: `fraud_alerts`, compact `user_fraud_scores`, `payment_metrics_hourly`, `dead_letter` (`KafkaSinks` / env через `FlinkJobProperties`).
+- Ops: checkpointing + Flink `PrometheusReporter` (`:9249`), дашборды Grafana; chaos — `docs/chaos.md`.
 
-**Spark Structured Streaming / Spark Streaming — out of scope for MVP.**
+**Spark Structured Streaming / Spark Streaming — вне scope MVP.**
 
-Job: `flink-payment-intelligence` · UI `:8081` · metrics `:9249`. Детали запуска: [`flink-payment-intelligence/README.md`](../../flink-payment-intelligence/README.md).
+Job: `flink-payment-intelligence` · UI `:8081` · metrics `:9249`. Запуск: [`flink-payment-intelligence/README.md`](../../flink-payment-intelligence/README.md).
 
-### Operator graph
+### Граф операторов
 
 ```mermaid
 flowchart TB
@@ -64,79 +64,79 @@ flowchart TB
   metrics --> PMH[payment_metrics_hourly]
 ```
 
-### Detection logic (внутри FraudDetectionFunction)
+### Логика детекции (внутри FraudDetectionFunction)
 
-| Checker | Idea |
+| Checker | Идея |
 |---------|------|
-| `VelocityChecker` | N payments / window per account |
-| `GeoAnomalyDetector` | sudden geo / risk tier mismatch |
-| `StructuringDetector` | many sub-threshold amounts (AML) |
-| `FraudScorer` | combines rule JSON + enrich scores |
+| `VelocityChecker` | N платежей / окно на account |
+| `GeoAnomalyDetector` | резкая смена geo / mismatch risk tier |
+| `StructuringDetector` | много сумм ниже порога (AML) |
+| `FraudScorer` | объединяет rule JSON + enrich scores |
 
-Rules hot-reload: update `rule_management.fraud_rule` → outbox CDC → `fraud_rules` → broadcast state **без** job restart.
+Hot-reload правил: update `rule_management.fraud_rule` → outbox CDC → `fraud_rules` → broadcast state **без** рестарта job.
 
-### Operators
+### Операторы
 
-| UID | Type | Input | Output |
-|-----|------|-------|--------|
+| UID | Тип | Вход | Выход |
+|-----|-----|------|-------|
 | `event-parser` | FlatMap + side output | raw JSON | `PaymentEvent` / DLT |
 | `user-risk-enricher` | Broadcast connect | event + profile | `EnrichedPayment` |
 | `fraud-scorer` | Keyed broadcast process | enriched + rule | alerts, scores |
 | `hourly-metrics` | Event-time window 1h | `PaymentEvent` | hourly metrics |
 
-### State & checkpoints
+### State и checkpoints
 
 - Backend: `HashMapStateBackend`
 - Storage: `FileSystemCheckpointStorage` (`/checkpoints`, volume shared JM/TM)
 - После `docker kill` TaskManager job восстанавливается из checkpoint ([docs/chaos.md](../chaos.md) §4)
-- Стабильные `uid` / `name` — обязательны; смена uid = потеря state
+- Стабильные `uid` / `name` обязательны; смена uid = потеря state
 
-## Consequences
+## Последствия
 
-### Positive
+### Плюсы
 
 - Native broadcast state: rule CRUD (`rule-management-service`) → CDC → Kafka → Flink без redeploy job.
 - Keyed process + timers хорошо выражают velocity / session-like checks.
 - Side outputs дают чистый контракт для BFF SSE (`fraud_alerts`) и DLT.
-- Prometheus metrics на job уровне (records/sec, checkpoint, backpressure) стыкуются с observability overlay.
-- Согласовано с clickstream reference — меньше «двух streaming стеков» в портфолио.
+- Prometheus-метрики job стыкуются с observability overlay.
+- Согласовано с clickstream-референсом — меньше «двух streaming-стеков» в портфолио.
 
-### Negative / accepted limitations
+### Минусы / принятые ограничения
 
-- Отдельный **JVM 11** toolchain vs JDK 21 Spring-сервисов (Gradle multi-release / separate module).
-- Flink cluster ops (JM/TM, checkpoints на volume) — отдельная поверхность отказа; см. chaos drills.
+- Отдельный **JVM 11** toolchain vs JDK 21 Spring-сервисов.
+- Flink cluster ops (JM/TM, checkpoints) — отдельная поверхность отказа; см. chaos drills.
 - Нет unified SQL UI «как Spark»; ad-hoc analytics — ClickHouse/Superset, не Flink SQL.
-- Local resource: TaskManagers тяжёлее лёгкого Kafka Streams app (частично закрыто `kstreams-saga-events-agg` только для saga metrics).
+- Локально TaskManagers тяжелее лёгкого Kafka Streams (частично закрыто `kstreams-saga-events-agg` только для saga metrics).
 
-## Alternatives considered
+## Альтернативы
 
-1. **Spark Structured Streaming** — rejected для fraud alerts: micro-batch latency + слабее broadcast-rules story для hot-reload demo.
-2. **Kafka Streams only** — considered для простых aggregations; rejected как primary fraud engine (нет первоклассного broadcast state / Flink-parity с reference AML graph). Используется точечно: `kstreams-saga-events-agg`.
-3. **Rules in participant-fraud-check only (sync Redis score)** — insufficient alone: нужен continuous scoring + alerts stream; participant читает last score, Flink его производит.
-4. **Flink SQL / Table API only** — rejected: custom AML structuring и scoring удобнее DataStream + Kotlin functions.
+1. **Spark Structured Streaming** — отклонено для fraud alerts: micro-batch latency + слабее story hot-reload правил.
+2. **Только Kafka Streams** — рассмотрено для простых aggregations; отклонено как primary fraud engine (нет первоклассного broadcast state / parity с reference AML graph). Точечно: `kstreams-saga-events-agg`.
+3. **Правила только в participant-fraud-check (sync Redis score)** — недостаточно: нужен continuous scoring + alerts stream; participant читает last score, Flink его производит.
+4. **Только Flink SQL / Table API** — отклонено: custom AML structuring и scoring удобнее DataStream + Kotlin.
 
-## Code pointers
+## Указатели в коде
 
-| Area | Path |
-|------|------|
+| Область | Путь |
+|---------|------|
 | Job entry / graph | `flink-payment-intelligence/src/main/kotlin/.../PaymentIntelligenceJob.kt` |
 | Fraud core | `.../scoring/FraudDetectionFunction.kt`, `FraudScorer.kt` |
-| Rules / AML helpers | `.../rules/VelocityChecker.kt`, `GeoAnomalyDetector.kt`, `.../aml/StructuringDetector.kt` |
+| Rules / AML | `.../rules/VelocityChecker.kt`, `GeoAnomalyDetector.kt`, `.../aml/StructuringDetector.kt` |
 | Enrichment | `.../enrich/UserRiskEnricher.kt` |
 | Parse / DLT | `.../io/EventParser.kt`, `DeadLetterTag.kt` |
 | Metrics window | `.../metrics/HourlyMetricsFunction.kt` |
 | Config / topics | `.../config/FlinkJobProperties.kt` |
-| Dynamic rules producer | `rule-management-service/`, Debezium `rule-management-outbox.json` |
-| Module README | `flink-payment-intelligence/README.md` |
+| Dynamic rules | `rule-management-service/`, Debezium `rule-management-outbox.json` |
+| README модуля | `flink-payment-intelligence/README.md` |
 
-## See also / Revisit
+## См. также / когда пересмотреть
 
 - [ADR 0006](0006-analytics-split-superset-vs-react.md) — Flink → Kafka → ClickHouse; BI = Superset, не Flink UI.
 - [ADR 0008](0008-no-distributed-tracing-mvp.md) — нет OTel traces через Flink operators в MVP.
 - Chaos: [`docs/chaos.md`](../chaos.md).
 
-**Revisit triggers**
+**Триггеры пересмотра**
 
-- Команда уже стандартизирована на Spark и не хочет второй runtime → переоценка (с потерей broadcast DX).
-- Нужен unified batch+streaming lakehouse job на Spark 3.x / Structured Streaming для тяжёлых feature pipelines — Flink может остаться только для alerts.
+- Команда стандартизирована на Spark и не хочет второй runtime → переоценка (с потерей broadcast DX).
+- Нужен unified batch+streaming lakehouse на Spark 3.x — Flink может остаться только для alerts.
 - Flink SQL + catalogs закрывают 80% кастомных функций — возможен partial move.

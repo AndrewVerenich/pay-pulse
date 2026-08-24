@@ -1,42 +1,28 @@
-# ADR 0001 — Temporal balance via `balance_events` table instead of aggregate snapshots
+# ADR 0001 — Temporal balance через `balance_events`, а не aggregate snapshots
 
-- Status: Accepted
-- Date: 2026-05-10
-- Context owner: payment-command + projection-balance teams
-- Reference baseline: `distributed-backend-platform/event-sourcing-cqrs-banking` (snapshot pattern)
+- Статус: Принят
+- Дата: 2026-05-10
+- Владелец контекста: payment-command + projection-balance
+- Референс: `distributed-backend-platform/event-sourcing-cqrs-banking` (паттерн snapshots)
 
-## Context
+## Контекст
 
-PayPulse uses Event Sourcing for the canonical write side (`payment_command.event_store`)
-and CQRS read models. The reference platform `event-sourcing-cqrs-banking` solves
-"give me the balance as of T or as of version V" via the classic **snapshot pattern**:
+PayPulse использует Event Sourcing на write-side (`payment_command.event_store`) и CQRS read-модели. В референсе `event-sourcing-cqrs-banking` вопрос «баланс на момент T / версии V» решается классическим **snapshot-паттерном**:
 
-- A `snapshots` table stores the full aggregate state at version V every N events
-  (configurable, e.g. every 100).
-- To rebuild balance at any point in time the service loads the most recent snapshot
-  not after T and replays events with `version > snapshot.version` and
-  `occurred_at <= T`.
-- Pros: bounded read amplification per query, classic ES textbook pattern.
-- Cons: extra moving part (snapshotter job), state duplication, snapshot
-  invalidation on schema evolution.
+- таблица `snapshots` хранит полное состояние агрегата на версии V каждые N событий (например, каждые 100);
+- для восстановления на момент T берётся последний snapshot не позже T и доигрываются события с `version > snapshot.version` и `occurred_at <= T`;
+- плюсы: ограниченная стоимость чтения, учебный ES-паттерн;
+- минусы: отдельный snapshotter, дублирование состояния, инвалидация при эволюции схемы.
 
-PayPulse's analytical workload differs:
+У PayPulse аналитическая нагрузка другая:
 
-1. The single aggregate today (`Payment`) is short-lived: 1–3 events per `payment_id`
-   in steady state (`Initiated → Authorized → Settled`). Snapshotting
-   a payment is unnecessary — full replay is O(3).
-2. The actually queried temporal axis is **per-account**, not per-aggregate
-   (`/api/v1/accounts/{id}/balance?asOf=...`). Account balance is the
-   running sum of *all* payments for that account, i.e. it crosses aggregate
-   boundaries. Snapshots of `Payment` aggregates do not help answer this.
-3. We already maintain a denormalized projection `account_query.balance_events`,
-   one row per applied event with `(account_id, occurred_at, balance_after)`.
-   This row already *is* a per-account snapshot at the resolution of "every event".
+1. Агрегат `Payment` короткий: 1–3 события на `payment_id` (`Initiated → Authorized → Settled`). Snapshot платежа не нужен — полный replay O(3).
+2. Temporal-ось запросов — **по счёту**, не по агрегату (`/api/v1/accounts/{id}/balance?asOf=...`). Баланс счёта — сумма по всем платежам аккаунта, то есть пересекает границы агрегатов. Snapshot `Payment` на это не отвечает.
+3. Уже есть денормализованная проекция `account_query.balance_events`: строка на применённое событие с `(account_id, occurred_at, balance_after)`. По сути это per-account snapshot с зерном «каждое событие».
 
-## Decision
+## Решение
 
-We **do not implement** the per-aggregate `snapshots` table from the banking
-reference. Temporal balance reads are served by `account_query.balance_events`:
+**Не внедряем** таблицу per-aggregate `snapshots` из banking-референса. Temporal-баланс читаем из `account_query.balance_events`:
 
 ```sql
 SELECT balance_after
@@ -47,45 +33,30 @@ SELECT balance_after
  LIMIT 1
 ```
 
-This is functionally equivalent to "the last snapshot <= T" with N = 1, with no
-separate snapshotting process.
+Функционально это «последний snapshot ≤ T» при N = 1, без отдельного snapshotting-процесса.
 
-## Consequences
+## Последствия
 
-Positive
+### Плюсы
 
-- One fewer table, one fewer background job.
-- Temporal queries are already O(1) index lookups
-  (`balance_events` is indexed on `(account_id, occurred_at)`).
-- Schema evolution is simpler: `balance_events` is a projection and can be
-  rebuilt by replaying `payment.events` from earliest offset.
+- На одну таблицу и один фоновый job меньше.
+- Temporal-запросы — O(1) lookup по индексу `(account_id, occurred_at)`.
+- Эволюция схемы проще: `balance_events` — проекция, её можно пересобрать из `payment.events` с earliest offset.
 
-Negative / accepted limitations
+### Минусы / принятые ограничения
 
-- `balance_events` grows linearly with the number of events. We accept this:
-  partition pruning by `occurred_at` (ClickHouse / Postgres partitioning later)
-  keeps it bounded.
-- We lose the ability to "load the Payment aggregate at version V" cheaply
-  *if* a payment ever accumulates a long event tail. If that becomes
-  real, we will introduce snapshots **only for the `Payment` aggregate**, not
-  retroactively for accounts.
+- `balance_events` растёт линейно с числом событий. Принимаем: позже pruning / partitioning по `occurred_at` (Postgres / ClickHouse).
+- Дешёвый «загрузить Payment на version V» пропадает, если у платежа появится длинный хвост событий. Тогда snapshots введём **только для агрегата `Payment`**, не ретроактивно для счетов.
 
-## Alternatives considered
+## Альтернативы
 
-1. **Mirror banking snapshots 1:1** — rejected: solves a problem we don't
-   have (per-aggregate replay cost) and does not solve the problem we do have
-   (per-account temporal balance).
-2. **No projection, replay `event_store` on every query** — rejected: O(N)
-   per query, unacceptable for the dashboard.
-3. **`balance_events` plus snapshots** — rejected as premature: snapshots
-   would duplicate `balance_events` content for negligible gain.
+1. **Зеркалить banking snapshots 1:1** — отклонено: решает чужую проблему (стоимость replay агрегата) и не решает нашу (per-account temporal balance).
+2. **Без проекции, replay `event_store` на каждый запрос** — отклонено: O(N) на запрос, неприемлемо для дашборда.
+3. **`balance_events` плюс snapshots** — отклонено как premature: snapshots дублируют содержимое `balance_events` почти без выигрыша.
 
-## Revisit triggers
+## Когда пересмотреть
 
-Re-open this ADR when *any* of the following happens:
+Переоткрыть ADR, если:
 
-- A `Payment` aggregate routinely exceeds ~50 events (e.g. partial captures,
-  refunds, chargebacks). Then introduce per-aggregate snapshots in
-  `payment_command`.
-- Rebuild time for `balance_events` from `payment.events` exceeds the SLO for
-  recovery (currently informal ~10 min for the demo dataset).
+- агрегат `Payment` стабильно превышает ~50 событий (partial captures, refunds, chargebacks) → snapshots в `payment_command`;
+- rebuild `balance_events` из `payment.events` выходит за SLO восстановления (сейчас неформально ~10 мин на демо-датасете).

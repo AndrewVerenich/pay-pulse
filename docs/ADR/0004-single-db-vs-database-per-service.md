@@ -1,13 +1,13 @@
-# ADR 0004 — Single PostgreSQL with schemas vs database-per-service
+# ADR 0004 — Один PostgreSQL со схемами vs database-per-service
 
-- Status: Accepted
-- Date: 2026-06-18
-- Context owner: platform / Liquibase / Debezium
-- Related ADRs: [0002](0002-saga-orchestration-vs-choreography.md), [0003](0003-event-sourcing-scope-ledger-only.md)
+- Статус: Принят
+- Дата: 2026-06-18
+- Владелец контекста: platform / Liquibase / Debezium
+- Связанные ADR: [0002](0002-saga-orchestration-vs-choreography.md), [0003](0003-event-sourcing-scope-ledger-only.md)
 
-## Context
+## Контекст
 
-Классический microservice advice — **database-per-service**: изоляция blast radius, независимый scaling и ownership миграций.
+Классический совет по микросервисам — **database-per-service**: изоляция blast radius, независимое масштабирование и ownership миграций.
 
 Для PayPulse первичный target — **portfolio / interview demo** на Docker Compose:
 
@@ -15,15 +15,15 @@
 - один Liquibase init-container применяет весь changelog;
 - Debezium connectors читают один Postgres (logical decoding / replication slot).
 
-True DB-per-service на ноутбуке умножает контейнеры, слоты, credentials и время cold-start без выигрыша для демо-SLO.
+Настоящий DB-per-service на ноутбуке умножает контейнеры, слоты, credentials и время cold-start без выигрыша для демо-SLO.
 
-## Decision
+## Решение
 
 Один экземпляр PostgreSQL (`paypulse`) с **schema-per-service** (логически отдельные bounded contexts, физически одна БД):
 
-| Schema | Owner / consumers |
-|--------|-------------------|
-| `payment_command` | `payment-command-service`, `participant-ledger-apply` (writes to `event_store`) |
+| Schema | Владелец / потребители |
+|--------|------------------------|
+| `payment_command` | `payment-command-service`, `participant-ledger-apply` (writes в `event_store`) |
 | `account_query` | `projection-balance`, account-query reads |
 | `saga` | `payment-saga-orchestrator` |
 | `participant_fraud` | `participant-fraud-check` |
@@ -32,54 +32,54 @@ True DB-per-service на ноутбуке умножает контейнеры,
 | `participant_notification` | `participant-notification` |
 | `auth` | `auth-gateway` |
 | `rule_management` | `rule-management-service` |
-| `airflow` | Airflow metadata (`compose.analytics.yml`, `009-airflow-schema.xml`) |
+| `airflow` | метаданные Airflow (`compose.analytics.yml`, `009-airflow-schema.xml`) |
 
 Миграции: единый runner `liquibase/changelog/db.changelog-master.xml`.
 
 Cross-schema FK **запрещены by design** — связи только по UUID (`paymentId`, `sagaId`, `accountId`).
 
-В demo все сервисы могут ходить под одним JDBC user; в production hardening ожидаются per-schema roles + `search_path`.
+В демо сервисы могут ходить под одним JDBC user; в production hardening ожидаются per-schema roles + `search_path`.
 
-## Consequences
+## Последствия
 
-### Positive
+### Плюсы
 
 - Один Compose Postgres, один Liquibase job, проще Debezium (connectors на схемы/таблицы одного хоста).
 - Локальный reset = drop volume + re-run changelog.
-- Схемы всё ещё отражают bounded contexts в коде и ADR/docs.
-- Airflow metadata не требует отдельного Postgres в MVP analytics overlay.
+- Схемы отражают bounded contexts в коде и документации.
+- Метаданным Airflow не нужен отдельный Postgres в MVP analytics overlay.
 
-### Negative / accepted limitations
+### Минусы / принятые ограничения
 
 - Нет жёсткой network isolation: ошибочный JDBC URL / `search_path` может читать чужую схему.
-- Noisy neighbor: тяжёлый Airflow/analytics metadata делит I/O с OLTP (митигация: отдельный schema, не отдельный host — accepted for demo).
-- Horizontal scaling write path и independent backup/PITR per service — отложены.
+- Noisy neighbor: тяжёлый Airflow делит I/O с OLTP (митигация: отдельный schema, не отдельный host — accepted for demo).
+- Horizontal scaling write path и независимый backup/PITR per service — отложены.
 - Logical decoding slot — single point; падение Postgres роняет весь OLTP.
 
-## Alternatives considered
+## Альтернативы
 
-1. **Отдельный Postgres на каждый сервис** — deferred на production hardening; слишком тяжёлый cold-start для Compose demo.
-2. **Shared tables без схем** (`public` kitchen sink) — rejected: стирает границы контекстов, усложняет Debezium include lists.
-3. **Postgres OLTP + отдельный Postgres только для Airflow** — reasonable later; сейчас schema `airflow` достаточен.
-4. **Schema-per-service + Postgres RDS с IAM roles сразу** — out of scope для Compose MVP.
+1. **Отдельный Postgres на каждый сервис** — отложено на production hardening; слишком тяжёлый cold-start для Compose-демо.
+2. **Общие таблицы без схем** (`public` kitchen sink) — отклонено: стирает границы контекстов, усложняет Debezium include lists.
+3. **Postgres OLTP + отдельный Postgres только для Airflow** — разумно позже; сейчас schema `airflow` достаточен.
+4. **Schema-per-service + RDS с IAM сразу** — вне scope Compose MVP.
 
-## Code pointers
+## Указатели в коде
 
-| Area | Path |
-|------|------|
+| Область | Путь |
+|---------|------|
 | Master changelog | `liquibase/changelog/db.changelog-master.xml` |
-| Core schemas | `001-payment-command.xml`, `002-account-query.xml`, `005-auth-schema.xml`, `006-saga-schema.xml` (incl. `participant_*`), `007-rule-management.xml`, `009-airflow-schema.xml` |
-| Compose DB | `docker-compose.yml` (Postgres service), `compose.analytics.yml` (Airflow → same DB / schema `airflow`) |
+| Core schemas | `001-payment-command.xml`, `002-account-query.xml`, `005-auth-schema.xml`, `006-saga-schema.xml`, `007-rule-management.xml`, `009-airflow-schema.xml` |
+| Compose DB | `docker-compose.yml` (Postgres), `compose.analytics.yml` (Airflow → та же БД / schema `airflow`) |
 | Debezium | `debezium/connectors/payment-event-store.json`, `payment-outbox.json`, `rule-management-outbox.json` |
 
-## See also / Revisit
+## См. также / когда пересмотреть
 
 - [ADR 0002](0002-saga-orchestration-vs-choreography.md) — saga state в schema `saga`.
 - [ADR 0003](0003-event-sourcing-scope-ledger-only.md) — `event_store` в `payment_command`.
 - Analytics overlay: `compose.analytics.yml`.
 
-**Revisit triggers**
+**Триггеры пересмотра**
 
-- Production SLO / compliance требует изоляции PII или отдельного backup cadence → split `payment_command` (+ ledger) first.
+- Production SLO / compliance требует изоляции PII или отдельного backup cadence → сначала split `payment_command` (+ ledger).
 - Replication slot lag или WAL pressure от смешанной нагрузки Airflow + OLTP → вынести `airflow` в отдельный Postgres.
 - Независимое шардирование account/payment → database-per-service или Citus; схемы остаются логической картой миграции.

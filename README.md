@@ -585,11 +585,11 @@ pay-pulse/
 
 | ADR | Тема |
 |-----|------|
-| [0001](docs/ADR/0001-balance-events-vs-snapshots.md) | Temporal balance без aggregate snapshots |
-| [0002](docs/ADR/0002-saga-orchestration-vs-choreography.md) | Orchestrated saga vs choreography |
-| [0003](docs/ADR/0003-event-sourcing-scope-ledger-only.md) | ES scope: payment/ledger only |
-| [0004](docs/ADR/0004-single-db-vs-database-per-service.md) | Single Postgres, schema-per-service |
-| [0005](docs/ADR/0005-flink-vs-spark-streaming.md) | Flink for fraud streaming |
-| [0006](docs/ADR/0006-analytics-split-superset-vs-react.md) | Superset vs React Ops |
-| [0007](docs/ADR/0007-jwt-hs256-and-redis-blacklist.md) | HS256 + Redis blacklist |
-| [0008](docs/ADR/0008-no-distributed-tracing-mvp.md) | Metrics-first, no tracing MVP |
+| [0001](docs/ADR/0001-balance-events-vs-snapshots.md) | Temporal balance через `balance_events`, не snapshots |
+| [0002](docs/ADR/0002-saga-orchestration-vs-choreography.md) | Orchestrated saga вместо choreography |
+| [0003](docs/ADR/0003-event-sourcing-scope-ledger-only.md) | ES только на payment/ledger |
+| [0004](docs/ADR/0004-single-db-vs-database-per-service.md) | Один Postgres, schema-per-service |
+| [0005](docs/ADR/0005-flink-vs-spark-streaming.md) | Flink для fraud streaming |
+| [0006](docs/ADR/0006-analytics-split-superset-vs-react.md) | Superset/dbt vs React Ops |
+| [0007](docs/ADR/0007-jwt-hs256-and-redis-blacklist.md) | JWT HS256 + Redis blacklist |
+| [0008](docs/ADR/0008-no-distributed-tracing-mvp.md) | Metrics-first, без tracing в MVP |
