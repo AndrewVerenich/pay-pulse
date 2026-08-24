@@ -225,7 +225,7 @@ SEC-цепочка, command/reply, DSL и admin API: [payment-saga-orchestrator/
 
 ### 7.3 Flink operator graph
 
-Job, broadcast `fraud_rules` / `user_risk_profiles`, Kafka I/O: [flink-payment-intelligence/README.md](flink-payment-intelligence/README.md). Детальный graph: [docs/architecture/flink-graph.md](docs/architecture/flink-graph.md). ADR: [0005](docs/ADR/0005-flink-vs-spark-streaming.md).
+Job, broadcast `fraud_rules` / `user_risk_profiles`, Kafka I/O: [flink-payment-intelligence/README.md](flink-payment-intelligence/README.md). Operator graph и checkpoints: [ADR 0005](docs/ADR/0005-flink-vs-spark-streaming.md).
 
 ### 7.4 Data model
 
@@ -490,7 +490,7 @@ pay-pulse/
 ├── compose.analytics.yml
 └── docs/
     ├── ADR/                      # 0001–0008
-    ├── architecture/             # flink-graph, …
+    ├── architecture/             # индекс + ADR links
     ├── demo/                     # .http
     ├── chaos.md
     └── screenshots/

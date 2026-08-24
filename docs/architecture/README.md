@@ -2,12 +2,6 @@
 
 Оглавление архитектурных материалов и связанных технических документов.
 
-## Streaming & graphs
-
-| Doc | Description |
-|-----|-------------|
-| [flink-graph.md](flink-graph.md) | Operator graph `PaymentIntelligenceJob` (sources, broadcast, side outputs, checkpoints) |
-
 ## ADR index
 
 | ADR | Title |

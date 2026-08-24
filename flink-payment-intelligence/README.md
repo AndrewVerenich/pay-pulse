@@ -5,8 +5,7 @@
 (два независимых стрима: `fraud_rules` и `user_risk_profiles`) и **side outputs**
 (`dead_letter`, `user_fraud_scores`). Граф операторов виден на Flink Dashboard.
 
-> ADR: [0005 Flink vs Spark](../docs/ADR/0005-flink-vs-spark-streaming.md) ·
-> uid / restore: [docs/architecture/flink-graph.md](../docs/architecture/flink-graph.md)
+> ADR: [0005 Flink vs Spark](../docs/ADR/0005-flink-vs-spark-streaming.md) — operator graph, uid / restore, checkpoints
 
 ---
 
