@@ -98,6 +98,22 @@ services:
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.replies --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.events --partitions 3 --replication-factor 1
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic saga.compensation.failed --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic fraud_alerts --partitions 6 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic dead_letter --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment_metrics_hourly --partitions 3 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user_fraud_scores --partitions 3 --replication-factor 1 --config cleanup.policy=compact
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic fraud_rules --partitions 3 --replication-factor 1 --config cleanup.policy=compact
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic user_risk_profiles --partitions 3 --replication-factor 1 --config cleanup.policy=compact
+        # Debezium heartbeat-топики: auto-create отключён, а коннекторы шлют heartbeat
+        # в __debezium-heartbeat.<topic.prefix>. Без предсоздания продюсер коннектора спамит
+        # UNKNOWN_TOPIC_OR_PARTITION. Имена соответствуют topic.prefix из debezium/connectors/*.json.
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic __debezium-heartbeat.cdc.paypulse --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic __debezium-heartbeat.cdc.paypulse.outbox --partitions 1 --replication-factor 1
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic __debezium-heartbeat.cdc.paypulse.rule.outbox --partitions 1 --replication-factor 1
+        printf 'rule-default|{"ruleId":"rule-default","version":1,"enabled":true,"maxAmount":10000,"velocityWindowMs":3600000,"velocityMaxCount":50,"structuringThreshold":9900,"structuringWindowHours":24,"structuringMinPayments":3}\n' \
+          | kafka-console-producer --bootstrap-server kafka:9092 --topic fraud_rules --property parse.key=true --property key.separator='|'
+        printf 'acc-1|{"userId":"acc-1","baselineRisk":0.1}\nacc-2|{"userId":"acc-2","baselineRisk":0.2}\n' \
+          | kafka-console-producer --bootstrap-server kafka:9092 --topic user_risk_profiles --property parse.key=true --property key.separator='|'
         echo "Kafka topics ready."
 
   kafka-ui:
@@ -149,6 +165,7 @@ services:
     volumes:
       - ./debezium/connectors/payment-event-store.json:/connector-event-store.json:ro
       - ./debezium/connectors/payment-outbox.json:/connector-outbox.json:ro
+      - ./debezium/connectors/rule-management-outbox.json:/connector-rule-outbox.json:ro
     entrypoint:
       - /bin/sh
       - -c
@@ -162,6 +179,10 @@ services:
           --data @/connector-outbox.json \
           http://connect:8083/connectors \
         ) || (echo "Outbox connector may already exist; continuing.")
+        (curl -sfS -X POST -H 'Content-Type: application/json' \
+          --data @/connector-rule-outbox.json \
+          http://connect:8083/connectors \
+        ) || (echo "Rule-management outbox connector may already exist; continuing.")
         echo "Debezium connectors registered."
 
   clickhouse:
@@ -191,15 +212,16 @@ services:
       liquibase-migrate:
         condition: service_completed_successfully
     ports:
-      - "8086:8080"
+      - "8086:8086"
     environment:
       PAYPULSE_DB_HOST: postgres
       PAYPULSE_DB_PORT: "5432"
       PAYPULSE_DB_NAME: paypulse
       PAYPULSE_DB_USER: postgres
       PAYPULSE_DB_PASSWORD: postgres
+      SERVER_PORT: "8086"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -225,7 +247,7 @@ services:
       PAYPULSE_DB_PASSWORD: postgres
       SERVER_PORT: "8082"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8082/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -250,6 +272,41 @@ services:
       PAYPULSE_DB_NAME: paypulse
       PAYPULSE_DB_USER: postgres
       PAYPULSE_DB_PASSWORD: postgres
+      SERVER_PORT: "8088"
+    ports:
+      - "8088:8088"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8088/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  rule-management-service:
+    build:
+      context: .
+      dockerfile: rule-management-service/Dockerfile
+    container_name: paypulse-rule-management
+    depends_on:
+      postgres:
+        condition: service_healthy
+      liquibase-migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8095:8085"
+    environment:
+      PAYPULSE_DB_HOST: postgres
+      PAYPULSE_DB_PORT: "5432"
+      PAYPULSE_DB_NAME: paypulse
+      PAYPULSE_DB_USER: postgres
+      PAYPULSE_DB_PASSWORD: postgres
+      SERVER_PORT: "8085"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   auth-gateway:
     build:
@@ -267,13 +324,18 @@ services:
         condition: service_healthy
       account-query-service:
         condition: service_healthy
+      rule-management-service:
+        condition: service_healthy
     ports:
       - "8090:8090"
     environment:
       SERVER_PORT: "8090"
-      PAYPULSE_PAYMENT_COMMAND_URI: http://payment-command-service:8080
+      PAYPULSE_PAYMENT_COMMAND_URI: http://payment-command-service:8086
       PAYPULSE_ACCOUNT_QUERY_URI: http://account-query-service:8082
       PAYPULSE_SAGA_ORCHESTRATOR_URI: http://payment-saga-orchestrator:8083
+      PAYPULSE_BFF_OPS_URI: http://bff-ops:8084
+      PAYPULSE_RULE_MANAGEMENT_URI: http://rule-management-service:8085
+      PAYPULSE_PAYMENT_GENERATOR_URI: http://payment-generator:8097
       PAYPULSE_JWT_SECRET: "0123456789abcdef0123456789abcdef0123456789abcdef"
       PAYPULSE_DB_HOST: postgres
       PAYPULSE_DB_PORT: "5432"
@@ -284,7 +346,7 @@ services:
       PAYPULSE_REDIS_PORT: "6379"
       PAYPULSE_TOKEN_BLACKLIST_ENABLED: "true"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8090/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8090/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -298,10 +360,19 @@ services:
     depends_on:
       auth-gateway:
         condition: service_healthy
+    ports:
+      - "8097:8097"
     environment:
+      SERVER_PORT: "8097"
       PAYPULSE_GATEWAY_URL: http://auth-gateway:8090
       PAYPULSE_GENERATOR_ENABLED: "true"
       PAYPULSE_GENERATOR_INTERVAL_MS: "5000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8097/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   payment-saga-orchestrator:
     build:
@@ -328,7 +399,7 @@ services:
       PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
       SERVER_PORT: "8083"
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8083/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -354,7 +425,7 @@ services:
       PAYPULSE_DB_PASSWORD: postgres
       PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8091/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8091/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -380,7 +451,7 @@ services:
       PAYPULSE_DB_PASSWORD: postgres
       PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8092/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8092/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -406,7 +477,7 @@ services:
       PAYPULSE_DB_PASSWORD: postgres
       PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8093/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8093/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -432,7 +503,88 @@ services:
       PAYPULSE_DB_PASSWORD: postgres
       PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8094/actuator/health | grep -q UP"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8094/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  bff-ops:
+    build:
+      context: .
+      dockerfile: bff-ops/Dockerfile
+    container_name: paypulse-bff-ops
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      payment-command-service:
+        condition: service_healthy
+      account-query-service:
+        condition: service_healthy
+      payment-saga-orchestrator:
+        condition: service_healthy
+    ports:
+      - "8085:8084"
+    environment:
+      SERVER_PORT: "8084"
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+      PAYPULSE_PAYMENT_COMMAND_URI: http://payment-command-service:8086
+      PAYPULSE_ACCOUNT_QUERY_URI: http://account-query-service:8082
+      PAYPULSE_SAGA_ORCHESTRATOR_URI: http://payment-saga-orchestrator:8083
+      PAYPULSE_JWT_SECRET: "0123456789abcdef0123456789abcdef0123456789abcdef"
+      PAYPULSE_HEALTH_PAYMENT_COMMAND: http://payment-command-service:8086/actuator/health
+      PAYPULSE_HEALTH_PROMETHEUS: http://prometheus:9090/-/healthy
+      PAYPULSE_HEALTH_GRAFANA: http://grafana:3000/api/health
+      PAYPULSE_HEALTH_FLINK: http://flink-jobmanager:8081/overview
+      PAYPULSE_HEALTH_SUPERSET: http://superset:8088/health
+      PAYPULSE_HEALTH_AIRFLOW: http://airflow-webserver:8080/health
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  kstreams-saga-events-agg:
+    build:
+      context: .
+      dockerfile: kstreams-saga-events-agg/Dockerfile
+    container_name: paypulse-kstreams-saga-agg
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+      payment-saga-orchestrator:
+        condition: service_healthy
+    ports:
+      - "8096:8096"
+    environment:
+      SERVER_PORT: "8096"
+      PAYPULSE_KAFKA_BOOTSTRAP: kafka:9092
+      PAYPULSE_SAGA_EVENTS_TOPIC: saga.events
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8096/actuator/health | grep -q UP"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  ops-dashboard-ui:
+    build:
+      context: .
+      dockerfile: ops-dashboard-ui/Dockerfile
+    container_name: paypulse-ops-ui
+    depends_on:
+      auth-gateway:
+        condition: service_healthy
+      bff-ops:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      SERVER_PORT: "3000"
+      PAYPULSE_AUTH_GATEWAY_URI: http://auth-gateway:8090
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/actuator/health | grep -q UP"]
       interval: 10s
       timeout: 5s
       retries: 10
