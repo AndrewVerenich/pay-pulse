@@ -1,0 +1,39 @@
+@host = http://localhost:8090
+@username = admin
+@password = admin
+
+### Optional: register a new ops user
+# POST {{host}}/auth/register
+# Content-Type: application/json
+#
+# {
+#   "username": "demo-ops",
+#   "password": "demo-ops",
+#   "email": "demo-ops@paypulse.local"
+# }
+
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+###
+@token = {{login.response.body.accessToken}}
+@refreshToken = {{login.response.body.refreshToken}}
+
+# @name refresh
+POST {{host}}/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+###
+
+POST {{host}}/auth/logout-all
+Authorization: Bearer {{token}}

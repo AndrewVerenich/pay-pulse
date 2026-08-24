@@ -1,0 +1,29 @@
+@host = http://localhost:8090
+@username = admin
+@password = admin
+
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+###
+@token = {{login.response.body.accessToken}}
+
+# Current balance
+GET {{host}}/api/v1/accounts/acc-happy-demo/balance?currency=USD
+Authorization: Bearer {{token}}
+
+###
+
+# Point-in-time balance (ISO-8601 instant)
+GET {{host}}/api/v1/accounts/acc-happy-demo/balance?currency=USD&at=2026-06-18T12:00:00Z
+Authorization: Bearer {{token}}
+
+###
+
+# After creating payments, compare with payment-happy-path.http using different `at` values

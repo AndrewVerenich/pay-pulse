@@ -1,0 +1,41 @@
+@host = http://localhost:8090
+@username = admin
+@password = admin
+
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+###
+@token = {{login.response.body.accessToken}}
+
+# @name createPayment
+POST {{host}}/api/v1/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Idempotency-Key: happy-path-{{$timestamp}}
+
+{
+  "accountId": "acc-happy-demo",
+  "amount": 42.50,
+  "currency": "USD",
+  "merchantId": "demo-merchant"
+}
+
+###
+@paymentId = {{createPayment.response.body.paymentId}}
+
+###
+
+GET {{host}}/api/v1/accounts/acc-happy-demo/balance?currency=USD
+Authorization: Bearer {{token}}
+
+###
+
+GET {{host}}/api/payments/{{paymentId}}/full
+Authorization: Bearer {{token}}

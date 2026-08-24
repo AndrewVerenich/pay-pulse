@@ -1,0 +1,48 @@
+@host = http://localhost:8090
+@username = admin
+@password = admin
+
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+###
+@token = {{login.response.body.accessToken}}
+
+### Trigger velocity burst via payment-generator (proxied through gateway)
+POST {{host}}/api/generator/scenarios/velocity
+Authorization: Bearer {{token}}
+
+### Structuring pattern (many sub-threshold payments on one account)
+POST {{host}}/api/generator/scenarios/structuring
+Authorization: Bearer {{token}}
+
+### Geo anomaly pattern
+POST {{host}}/api/generator/scenarios/geo-anomaly
+Authorization: Bearer {{token}}
+
+### Steady normal load
+POST {{host}}/api/generator/scenarios/normal-load
+Authorization: Bearer {{token}}
+
+### Mixed profile (normal + risky + fraud interleaved)
+POST {{host}}/api/generator/scenarios/mixed
+Authorization: Bearer {{token}}
+
+### Live fraud alerts stream (browser or curl with token query param)
+# GET {{host}}/api/live/alerts/stream?token={{token}}
+
+GET {{host}}/api/live/alerts/stream
+Authorization: Bearer {{token}}
+
+###
+# Kafka console alternative (from host with docker):
+# docker exec -it paypulse-kafka kafka-console-consumer \
+#   --bootstrap-server localhost:9092 \
+#   --topic fraud_alerts \
+#   --from-beginning --max-messages 5

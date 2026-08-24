@@ -1,0 +1,45 @@
+@host = http://localhost:8090
+@username = admin
+@password = admin
+
+# @name login
+POST {{host}}/auth/login
+Content-Type: application/json
+
+{
+  "username": "{{username}}",
+  "password": "{{password}}"
+}
+
+###
+@token = {{login.response.body.accessToken}}
+
+###
+
+GET {{host}}/api/v1/fraud-rules
+Authorization: Bearer {{token}}
+
+###
+# Replace with an existing rule id from the list above
+@ruleId = 00000000-0000-0000-0000-000000000001
+
+# @name updateRule
+PUT {{host}}/api/v1/fraud-rules/{{ruleId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "demo-velocity-tight",
+  "enabled": true,
+  "json_spec": "{\"maxAmount\":10000,\"velocityWindowMs\":3600000,\"velocityMaxCount\":5,\"structuringThreshold\":9900,\"structuringWindowHours\":24,\"structuringMinPayments\":3}"
+}
+
+###
+
+GET {{host}}/api/v1/fraud-rules/{{ruleId}}
+Authorization: Bearer {{token}}
+
+###
+
+# Poll BFF rule ack SSE (optional)
+# GET {{host}}/api/live/rules/ack?token={{token}}
