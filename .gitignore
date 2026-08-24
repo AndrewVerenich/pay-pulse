@@ -9,8 +9,6 @@ bin
 logs
 out
 gen
-docs/index.html
-docs/index.pdf
 
 ### Java template
 *.class
@@ -36,4 +34,7 @@ hs_err_pid*
 !/gradle/wrapper/gradle-wrapper.properties
 !/gradle/wrapper/gradle-wrapper.jar
 
-/docs
+# Generated docs (keep stages/demo/chaos tracked)
+/docs/index.html
+/docs/index.pdf
+/load-test/reports/
