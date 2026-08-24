@@ -1,0 +1,27 @@
+{
+  "uid": "paypulse-pg-ch",
+  "title": "PayPulse Postgres & ClickHouse",
+  "tags": ["paypulse"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Postgres connections",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "pg_stat_database_numbackends", "refId": "A" }]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Outbox lag seconds",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "max(paypulse_outbox_lag_seconds)", "refId": "A" }]
+    }
+  ]
+}

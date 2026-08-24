@@ -1,0 +1,27 @@
+{
+  "uid": "paypulse-flink-job",
+  "title": "PayPulse Flink Job",
+  "tags": ["paypulse"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Failed checkpoints",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "flink_jobmanager_job_numFailedCheckpoints", "refId": "A" }]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Running jobs",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "flink_jobmanager_numRunningJobs", "refId": "A" }]
+    }
+  ]
+}
